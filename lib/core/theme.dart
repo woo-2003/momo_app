@@ -1,92 +1,60 @@
 import 'package:flutter/material.dart';
 
-/// 컬러 팔레트 — Peach & Spring 모티브
-///
-/// 따스함(복숭아) + 생기(봄 새싹) 톤. 토스 스타일의 절제된 구조는 그대로 유지하되,
-/// 색 가족만 웜 톤으로 전환한다.
-///
-/// 새로운 컬러가 필요한 경우 반드시 이곳에 토큰을 먼저 추가한 뒤 사용하셈
 class MomoColors {
   const MomoColors._();
 
-  // ── 기본 팔레트 (Peach & Spring) ─────────────────────────────────────────
-  /// 피치 코랄 - 메인 포인트
-  static const Color primary = Color(0xFFFF8E7A);
+  // ── 기본 팔레트 (v2: Intense Peach) ──────────────────────────────────────
+  static const Color primary = Color(0xFFFF6F61); // Intense Coral Pink
 
-  /// 웜 화이트 - 전체 배경
-  static const Color background = Color(0xFFFFF9F8);
+  /// 웜 아이보리 - 전체 배경
+  static const Color background = Color(0xFFFAF9F6);
 
   /// 연한 피치 - 입력창/카드 표면
   static const Color surface = Color(0xFFFFF1EF);
 
-  /// 본문 텍스트 (가독성 유지)
-  static const Color textMain = Color(0xFF191F28);
+  /// 본문 텍스트 (Deep Brown)
+  static const Color textMain = Color(0xFF4D2121);
 
-  /// 보조 텍스트 (가독성 유지)
-  static const Color textSub = Color(0xFF4E5968);
+  /// 보조 텍스트 (Soft Brown)
+  static const Color textSub = Color(0xFF6D4C4C);
 
-  // ── 확장 팔레트 (웜 톤으로 톤 맞춤) ───────────────────────────────────────
-  /// 입력창/카드의 외곽선 - 웜 그레이 (peach 계열에 자연스럽게 녹는 톤)
+  // ── 확장 팔레트 (웜 톤 정렬) ──────────────────────────────────────────
+  /// 입력창/카드의 외곽선 - 웜 그레이
   static const Color border = Color(0xFFF2E3DE);
 
-  /// 비활성 상태(버튼/입력) 배경 - 웜 톤
+  /// 비활성 상태 배경
   static const Color disabled = Color(0xFFE8D9D5);
 
-  /// 비활성 상태의 텍스트 (가독성 유지)
-  static const Color textDisabled = Color(0xFF8B95A1);
+  /// 비활성 상태 텍스트
+  static const Color textDisabled = Color(0xFFA6908C);
 
-  /// 에러/경고 - 피치 primary 와 의도적으로 구분되는 정통 레드
+  /// 에러/경고
   static const Color error = Color(0xFFE5383B);
 
-  /// 성공/긍정 피드백 - 봄 새싹 연두
+  /// 성공/긍정 피드백 (봄 새싹 연두)
   static const Color success = Color(0xFF88C057);
 
-  /// primary 위에 올라가는 텍스트
+  /// primary 위에 올라가는 텍스트 (버튼 글씨 등)
   static const Color onPrimary = Color(0xFFFFFFFF);
 }
 
 /// 8px 배수 spacing 시스템
-///
-/// 모든 padding/margin/gap은 이 토큰만 사용할듯
-/// 16, 24가 가장 자주 쓰이는 기준 간격
 class MomoSpacing {
   const MomoSpacing._();
-
-  /// 4px - 아이콘 내부 미세 간격 등 예외적 사용
   static const double xxs = 4.0;
-
-  /// 8px (1x)
   static const double xs = 8.0;
-
-  /// 16px (2x) - 컴포넌트 내부 기본
   static const double sm = 16.0;
-
-  /// 24px (3x) - 섹션 간 기본
   static const double md = 24.0;
-
-  /// 32px (4x)
   static const double lg = 32.0;
-
-  /// 40px (5x)
   static const double xl = 40.0;
-
-  /// 48px (6x) - 페이지 상하단 여백
   static const double xxl = 48.0;
 }
 
 /// Shape - BorderRadius 16px 고정
-///
-/// 기획 확정 사항: 모든 버튼/입력창의 BorderRadius는 16px.
 class MomoRadius {
   const MomoRadius._();
-
-  /// 컴포넌트 표준 반경 (16px)
   static const double component = 16.0;
-
-  /// 컴포넌트 표준 BorderRadius
   static const BorderRadius all = BorderRadius.all(Radius.circular(component));
-
-  /// 컴포넌트 표준 RoundedRectangleBorder
   static const RoundedRectangleBorder shape = RoundedRectangleBorder(
     borderRadius: all,
   );
@@ -133,8 +101,6 @@ class MomoTextStyles {
 }
 
 /// momo 통합 ThemeData
-///
-/// MaterialApp(theme: MomoTheme.light) 형태로 사용
 class MomoTheme {
   const MomoTheme._();
 
@@ -159,7 +125,6 @@ class MomoTheme {
       scaffoldBackgroundColor: MomoColors.background,
       splashFactory: InkRipple.splashFactory,
 
-      // AppBar -
       appBarTheme: const AppBarTheme(
         backgroundColor: MomoColors.background,
         foregroundColor: MomoColors.textMain,
@@ -169,7 +134,6 @@ class MomoTheme {
         titleTextStyle: MomoTextStyles.heading,
       ),
 
-      // ElevatedButton - Primary 액션
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: MomoColors.primary,
@@ -187,7 +151,6 @@ class MomoTheme {
         ),
       ),
 
-      // TextButton - 보조 액션 (찾기/회원가입 링크 등)
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: MomoColors.textSub,
@@ -200,7 +163,6 @@ class MomoTheme {
         ),
       ),
 
-      // OutlinedButton
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: MomoColors.textMain,
@@ -211,7 +173,6 @@ class MomoTheme {
         ),
       ),
 
-      // 입력창
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: MomoColors.surface,
@@ -243,7 +204,6 @@ class MomoTheme {
         ),
       ),
 
-      // 카드/시트
       cardTheme: const CardThemeData(
         color: MomoColors.surface,
         elevation: 0,
