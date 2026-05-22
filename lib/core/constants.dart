@@ -66,4 +66,5 @@ class ValidationMessages {
   static const String passwordRule = '영문 + 숫자 포함 8자 이상';
   static const String emailRule = '올바른 이메일 형식이 아닙니다.';
   static const String otpRule = '6자리 숫자를 입력해주세요.';
+  static const String otpInvalid = '인증번호가 올바르지 않습니다. 다시 입력해주세요.';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/theme.dart';
+import 'package:momo_app/presentation/screens/email_input_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -41,7 +42,11 @@ class LoginScreen extends StatelessWidget {
                   // 메인 버튼: 시작하기
                   ElevatedButton(
                     onPressed: () {
-                      // TODO: 시작하기 로직 연결
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => EmailInputScreen(),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: MomoColors.primary,

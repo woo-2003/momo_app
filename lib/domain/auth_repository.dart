@@ -1,8 +1,5 @@
 /// momo 인증 도메인 - Repository 인터페이스
-///
-/// - 프론트엔드 (정우영) 는 이 추상 클래스에만 의존한다.
-/// - 백엔드 (김동준) 는 이 인터페이스의 구현체를 제공한다.
-///   네트워크/스토리지 등 구현 세부는 본 파일에 포함하지 않는다.
+
 ///
 /// 모든 메서드는 비동기로 동작하며, 실패 시 [AuthException] 을 던진다.
 library;
@@ -22,10 +19,7 @@ abstract class AuthRepository {
   ///   - `invalid-credentials` : ID/PW 불일치
   ///   - `account-locked`      : 잠금 상태
   ///   - `network`             : 네트워크 오류
-  Future<AuthSession> login({
-    required String userId,
-    required String password,
-  });
+  Future<AuthSession> login({required String userId, required String password});
 
   /// 이메일로 OTP(6자리 숫자) 전송
   ///
@@ -71,9 +65,7 @@ abstract class AuthRepository {
   /// 실패: [AuthException]
   ///   - `token-invalid` : 토큰 위조/만료
   ///   - `user-not-found`: 해당 이메일로 가입된 계정 없음
-  Future<String> findId({
-    required VerificationToken verificationToken,
-  });
+  Future<String> findId({required VerificationToken verificationToken});
 
   /// 비밀번호 변경
   ///
@@ -120,10 +112,7 @@ class VerificationToken {
   /// 만료 시각 (UTC 권장)
   final DateTime expiresAt;
 
-  const VerificationToken({
-    required this.value,
-    required this.expiresAt,
-  });
+  const VerificationToken({required this.value, required this.expiresAt});
 }
 
 /// 로그인 성공 시 발급되는 세션 정보
@@ -161,11 +150,7 @@ class AuthException implements Exception {
   /// 원인 예외 (네트워크/직렬화 오류 래핑 시)
   final Object? cause;
 
-  const AuthException({
-    required this.code,
-    required this.message,
-    this.cause,
-  });
+  const AuthException({required this.code, required this.message, this.cause});
 
   @override
   String toString() => 'AuthException($code): $message';
