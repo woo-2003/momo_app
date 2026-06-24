@@ -28,6 +28,9 @@ class AuthPolicy {
   static const int otpLength = 6;
   static const Duration otpValidity = Duration(minutes: 5);
   static const Duration otpResendCooldown = Duration(seconds: 30);
+
+  static const int nicknameMinLength = 2;
+  static const int nicknameMaxLength = 10;
 }
 
 /// 입력값 검증용 정규식 모음
@@ -67,4 +70,7 @@ class ValidationMessages {
   static const String emailRule = '올바른 이메일 형식이 아닙니다.';
   static const String otpRule = '6자리 숫자를 입력해주세요.';
   static const String otpInvalid = '인증번호가 올바르지 않습니다. 다시 입력해주세요.';
+  static const String nicknameRule = '닉네임 입력 (2~10자)';
+  static const String nicknameAvailable = '사용 가능한 닉네임입니다!';
+  static const String nicknameTaken = '이미 사용 중인 닉네임입니다.';
 }

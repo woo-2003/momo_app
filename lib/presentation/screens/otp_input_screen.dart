@@ -4,6 +4,7 @@ import 'package:momo_app/core/constants.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/mock_auth_repository.dart';
 import 'package:momo_app/domain/auth_repository.dart';
+import 'package:momo_app/presentation/screens/password_setup_screen.dart';
 
 class OtpInputScreen extends StatefulWidget {
   OtpInputScreen({
@@ -56,14 +57,20 @@ class _OtpInputScreenState extends State<OtpInputScreen> {
     });
 
     try {
-      await widget.authRepository.verifyOtp(
+      final token = await widget.authRepository.verifyOtp(
         email: widget.email,
         code: _otpController.text.trim(),
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('인증되었습니다.')),
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PasswordSetupScreen(
+            email: widget.email,
+            verificationToken: token,
+            authRepository: widget.authRepository,
+          ),
+        ),
       );
     } on AuthException catch (e) {
       if (!mounted) return;

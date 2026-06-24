@@ -61,6 +61,30 @@ class MockAuthRepository implements AuthRepository {
     throw _notImplemented('changePassword');
   }
 
+  /// Mock에서 중복으로 처리하는 닉네임 (대소문자 무시)
+  static const Set<String> takenNicknames = {'admin', 'momo', 'test'};
+
+  @override
+  Future<void> checkNicknameAvailability({required String nickname}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
+    final trimmed = nickname.trim();
+    if (trimmed.length < AuthPolicy.nicknameMinLength ||
+        trimmed.length > AuthPolicy.nicknameMaxLength) {
+      throw const AuthException(
+        code: 'nickname-policy',
+        message: ValidationMessages.nicknameRule,
+      );
+    }
+
+    if (takenNicknames.contains(trimmed.toLowerCase())) {
+      throw const AuthException(
+        code: 'nickname-taken',
+        message: ValidationMessages.nicknameTaken,
+      );
+    }
+  }
+
   AuthException _notImplemented(String method) => AuthException(
         code: 'network',
         message: '$method 은(는) Mock에서 지원하지 않습니다.',

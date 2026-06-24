@@ -83,6 +83,17 @@ abstract class AuthRepository {
     required VerificationToken verificationToken,
     required String newPassword,
   });
+
+  /// 닉네임 중복 확인
+  ///
+  /// 입력
+  /// - [nickname] : 2~10자
+  ///
+  /// 사용 가능하면 정상 종료.
+  /// 실패: [AuthException]
+  ///   - `nickname-taken`  : 이미 사용 중
+  ///   - `nickname-policy` : 길이/형식 위반
+  Future<void> checkNicknameAvailability({required String nickname});
 }
 
 /// ---------------------------------------------------------------------------
