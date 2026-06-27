@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/presentation/screens/email_input_screen.dart';
+import 'package:momo_app/presentation/screens/login_form_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -62,7 +63,11 @@ class LoginScreen extends StatelessWidget {
                   // 보조 버튼: 이미 계정이 있습니다
                   OutlinedButton(
                     onPressed: () {
-                      // TODO: 기존 로그인 폼 전환 로직
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => LoginFormScreen(),
+                        ),
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       backgroundColor: MomoColors.background,

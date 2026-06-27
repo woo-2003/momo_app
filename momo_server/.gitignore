@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# env (secrets)
+.env
+.env.local
+
+# database (실제 사용자 데이터)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# logs
+*.log

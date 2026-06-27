@@ -13,10 +13,15 @@ class MockAuthRepository implements AuthRepository {
 
   @override
   Future<AuthSession> login({
-    required String userId,
+    required String email,
     required String password,
-  }) {
-    throw _notImplemented('login');
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    return AuthSession(
+      userId: email,
+      accessToken: 'mock-access-token',
+      accessTokenExpiresAt: DateTime.now().toUtc().add(const Duration(days: 7)),
+    );
   }
 
   @override
@@ -59,6 +64,41 @@ class MockAuthRepository implements AuthRepository {
     required String newPassword,
   }) {
     throw _notImplemented('changePassword');
+  }
+
+  /// Mock에서 중복으로 처리하는 닉네임 (대소문자 무시)
+  static const Set<String> takenNicknames = {'admin', 'momo', 'test'};
+
+  @override
+  Future<void> checkNicknameAvailability({required String nickname}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
+    final trimmed = nickname.trim();
+    if (trimmed.length < AuthPolicy.nicknameMinLength ||
+        trimmed.length > AuthPolicy.nicknameMaxLength) {
+      throw const AuthException(
+        code: 'nickname-policy',
+        message: ValidationMessages.nicknameRule,
+      );
+    }
+
+    if (takenNicknames.contains(trimmed.toLowerCase())) {
+      throw const AuthException(
+        code: 'nickname-taken',
+        message: ValidationMessages.nicknameTaken,
+      );
+    }
+  }
+
+  @override
+  Future<void> completeSignUp({
+    required String email,
+    required String password,
+    required DateTime birthDate,
+    required String nickname,
+    required VerificationToken verificationToken,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
   AuthException _notImplemented(String method) => AuthException(

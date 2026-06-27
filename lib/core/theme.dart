@@ -4,10 +4,10 @@ class MomoColors {
   const MomoColors._();
 
   // ── 기본 팔레트 (v2: Intense Peach) ──────────────────────────────────────
-  static const Color primary = Color(0xFFFF6F61); // Intense Coral Pink
+  static const Color primary = Color(0xFFEE8F8F);
 
   /// 웜 아이보리 - 전체 배경
-  static const Color background = Color(0xFFFAF9F6);
+  static const Color background = Color(0xFFFFF9F1);
 
   /// 연한 피치 - 입력창/카드 표면
   static const Color surface = Color(0xFFFFF1EF);

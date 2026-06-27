@@ -1,0 +1,19 @@
+{
+    "name": "email-otp-server",
+    "version": "1.0.0",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "db:view": "node scripts/db-view.js",
+        "db:export": "node scripts/db-view.js --export"
+    },
+    "dependencies": {
+        "bcryptjs": "^3.0.3",
+        "better-sqlite3": "^12.11.1",
+        "cors": "^2.8.5",
+        "dotenv": "^17.4.2",
+        "express": "^4.21.2",
+        "jsonwebtoken": "^9.0.3",
+        "nodemailer": "^6.10.1"
+    }
+}

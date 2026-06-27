@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/constants.dart';
 import 'package:momo_app/core/theme.dart';
-import 'package:momo_app/data/mock_auth_repository.dart';
+import 'package:momo_app/data/email_otp_auth_repository.dart';
 import 'package:momo_app/domain/auth_repository.dart';
 import 'package:momo_app/presentation/screens/otp_input_screen.dart';
 
 //시작하기 누르면 뜨는 이메일 인증받는 화면
 class EmailInputScreen extends StatefulWidget {
   EmailInputScreen({super.key, AuthRepository? authRepository})
-    : authRepository = authRepository ?? MockAuthRepository();
+    : authRepository = authRepository ?? EmailOtpAuthRepository();
 
   final AuthRepository authRepository;
 
@@ -39,7 +39,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
     setState(() => _isSending = true);
 
     try {
-      await widget.authRepository.sendOtp(
+      final expiresAt = await widget.authRepository.sendOtp(
         email: email,
         purpose: OtpPurpose.signUp,
       );
@@ -49,6 +49,7 @@ class _EmailInputScreenState extends State<EmailInputScreen> {
         MaterialPageRoute<void>(
           builder: (_) => OtpInputScreen(
             email: email,
+            otpExpiresAt: expiresAt,
             authRepository: widget.authRepository,
           ),
         ),
