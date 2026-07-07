@@ -108,6 +108,7 @@ class _BirthdateInputScreenState extends State<BirthdateInputScreen> {
     _isSyncing = false;
   }
 
+  /// 텍스트 필드 입력 등 휠 외부에서 날짜가 바뀔 때만 세 휠 위치를 맞춘다.
   void _syncWheelsFromState() {
     if (_yearWheelController.hasClients) {
       _yearWheelController.jumpToItem(_year - _minYear);
@@ -120,31 +121,54 @@ class _BirthdateInputScreenState extends State<BirthdateInputScreen> {
     }
   }
 
-  void _applyDate({required int year, required int month, required int day}) {
-    var nextDay = day;
+  /// 년·월 변경 시 일(day)이 해당 월의 마지막 날을 넘으면 보정한다.
+  int _clampDay(int year, int month, int day) {
     final maxDay = _daysInMonth(year, month);
-    if (nextDay > maxDay) nextDay = maxDay;
+    return day > maxDay ? maxDay : day;
+  }
 
-    setState(() {
-      _year = year;
-      _month = month;
-      _day = nextDay;
-    });
-
-    _syncTextFromState();
+  /// 일 휠만 위치를 맞춘다. 년·월 휠은 스크롤 중 jumpToItem 하지 않는다.
+  void _syncDayWheelOnly() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _syncWheelsFromState();
+      if (!mounted) return;
+      if (_dayWheelController.hasClients) {
+        _dayWheelController.jumpToItem(_day - 1);
+      }
     });
   }
 
   void _onYearWheelChanged(int index) {
     if (_isSyncing) return;
-    _applyDate(year: _minYear + index, month: _month, day: _day);
+    final year = _minYear + index;
+    final oldDay = _day;
+    final prevDayCount = _daysInMonth(_year, _month);
+    final nextDay = _clampDay(year, _month, _day);
+
+    setState(() {
+      _year = year;
+      _day = nextDay;
+    });
+    _syncTextFromState();
+    if (nextDay != oldDay || _daysInMonth(year, _month) != prevDayCount) {
+      _syncDayWheelOnly();
+    }
   }
 
   void _onMonthWheelChanged(int index) {
     if (_isSyncing) return;
-    _applyDate(year: _year, month: index + 1, day: _day);
+    final month = index + 1;
+    final oldDay = _day;
+    final prevDayCount = _daysInMonth(_year, _month);
+    final nextDay = _clampDay(_year, month, _day);
+
+    setState(() {
+      _month = month;
+      _day = nextDay;
+    });
+    _syncTextFromState();
+    if (nextDay != oldDay || _daysInMonth(_year, month) != prevDayCount) {
+      _syncDayWheelOnly();
+    }
   }
 
   void _onDayWheelChanged(int index) {
