@@ -90,7 +90,6 @@ class MockAuthRepository implements AuthRepository {
     }
   }
 
-<<<<<<< HEAD
   @override
   Future<void> completeSignUp({
     required String email,
@@ -102,8 +101,6 @@ class MockAuthRepository implements AuthRepository {
     await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
-=======
->>>>>>> origin/main
   AuthException _notImplemented(String method) => AuthException(
         code: 'network',
         message: '$method 은(는) Mock에서 지원하지 않습니다.',

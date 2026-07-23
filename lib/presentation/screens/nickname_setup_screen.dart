@@ -1,15 +1,9 @@
-<<<<<<< HEAD
 import 'package:flutter/foundation.dart';
-=======
->>>>>>> origin/main
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/constants.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/mock_auth_repository.dart';
-<<<<<<< HEAD
 import 'package:momo_app/data/session_store.dart';
-=======
->>>>>>> origin/main
 import 'package:momo_app/domain/auth_repository.dart';
 import 'package:momo_app/presentation/screens/main_screen.dart';
 
@@ -114,7 +108,6 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
     setState(() => _isCompleting = true);
 
     try {
-<<<<<<< HEAD
       await widget.authRepository.completeSignUp(
         email: widget.email,
         password: widget.password,
@@ -147,24 +140,17 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
         }
         // ===== [DEBUG] 끝 =====
       }
-=======
-      // TODO: 회원가입 완료 API 연동
-      // await widget.authRepository.completeSignUp(...);
->>>>>>> origin/main
 
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(builder: (_) => const MainScreen()),
         (route) => false,
       );
-<<<<<<< HEAD
     } on AuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );
-=======
->>>>>>> origin/main
     } finally {
       if (mounted) setState(() => _isCompleting = false);
     }
