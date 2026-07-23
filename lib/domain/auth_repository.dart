@@ -94,6 +94,7 @@ abstract class AuthRepository {
   ///   - `nickname-taken`  : 이미 사용 중
   ///   - `nickname-policy` : 길이/형식 위반
   Future<void> checkNicknameAvailability({required String nickname});
+<<<<<<< HEAD
 
   /// 회원가입 완료
   ///
@@ -119,6 +120,8 @@ abstract class AuthRepository {
     required String nickname,
     required VerificationToken verificationToken,
   });
+=======
+>>>>>>> origin/main
 }
 
 /// ---------------------------------------------------------------------------
