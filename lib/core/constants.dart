@@ -16,7 +16,7 @@ class AppMeta {
 /// 인증 정책
 ///
 /// - ID  : 영문 + 숫자, 4~20자 (영문 시작 권장 / 단독 영문 또는 숫자 허용)
-/// - PW  : 영문 + 숫자 조합, 최소 8자
+/// - PW  : 영문 + 숫자 필수, 특수문자 허용, 8~32자
 /// - OTP : 6자리 숫자, 5분 유효
 class AuthPolicy {
   const AuthPolicy._();
@@ -45,10 +45,9 @@ class ValidationPatterns {
     '^[a-zA-Z0-9]{${AuthPolicy.idMinLength},${AuthPolicy.idMaxLength}}\$',
   );
 
-  /// PW: 영문과 숫자를 모두 포함, 8~32자
-  /// (특수문자/한글 등은 정책 결정 전까지 허용 X — 기획 확정 시 갱신)
+  /// PW: 영문·숫자 필수, 특수문자 허용, 공백 제외 8~32자
   static final RegExp password = RegExp(
-    '^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{'
+    '^(?=.*[A-Za-z])(?=.*\\d)\\S{'
     '${AuthPolicy.passwordMinLength},${AuthPolicy.passwordMaxLength}'
     '}\$',
   );
@@ -67,7 +66,7 @@ class ValidationMessages {
   const ValidationMessages._();
 
   static const String idRule = '영문/숫자 조합 4~20자';
-  static const String passwordRule = '영문 + 숫자 포함 8자 이상';
+  static const String passwordRule = '영문 + 숫자 포함 8자 이상 (특수문자 가능)';
   static const String passwordMismatch = '비밀번호가 일치하지 않습니다.';
   static const String emailRule = '올바른 이메일 형식이 아닙니다.';
   static const String otpRule = '6자리 숫자를 입력해주세요.';
