@@ -5,7 +5,7 @@ import 'package:momo_app/service/email_otp_service.dart';
 /// [EmailOtpService]를 [AuthRepository] 인터페이스에 맞게 연결한다.
 class EmailOtpAuthRepository implements AuthRepository {
   EmailOtpAuthRepository({EmailOtpService? otpService})
-      : _otpService = otpService ?? EmailOtpService();
+    : _otpService = otpService ?? EmailOtpService();
 
   final EmailOtpService _otpService;
 
@@ -23,7 +23,9 @@ class EmailOtpAuthRepository implements AuthRepository {
         userId: result.email,
         nickname: result.nickname,
         accessToken: result.token,
-        accessTokenExpiresAt: DateTime.now().toUtc().add(const Duration(days: 7)),
+        accessTokenExpiresAt: DateTime.now().toUtc().add(
+          const Duration(days: 7),
+        ),
       );
     } on ApiException catch (e) {
       throw _mapLoginException(e);
@@ -37,9 +39,7 @@ class EmailOtpAuthRepository implements AuthRepository {
       case 401:
         return AuthException(
           code: 'invalid-credentials',
-          message: e.message.isNotEmpty
-              ? e.message
-              : '이메일 또는 비밀번호가 올바르지 않습니다.',
+          message: e.message.isNotEmpty ? e.message : '이메일 또는 비밀번호가 올바르지 않습니다.',
         );
       case 400:
         return AuthException(
@@ -106,7 +106,9 @@ class EmailOtpAuthRepository implements AuthRepository {
   @override
   Future<void> checkNicknameAvailability({required String nickname}) async {
     try {
-      final available = await _otpService.checkNicknameAvailable(nickname.trim());
+      final available = await _otpService.checkNicknameAvailable(
+        nickname.trim(),
+      );
       if (!available) {
         throw const AuthException(
           code: 'nickname-taken',
@@ -117,7 +119,9 @@ class EmailOtpAuthRepository implements AuthRepository {
       if (e.statusCode == 400) {
         throw AuthException(
           code: 'nickname-policy',
-          message: e.message.isNotEmpty ? e.message : ValidationMessages.nicknameRule,
+          message: e.message.isNotEmpty
+              ? e.message
+              : ValidationMessages.nicknameRule,
         );
       }
       throw AuthException(
@@ -194,15 +198,9 @@ class EmailOtpAuthRepository implements AuthRepository {
           message: '이미 인증이 완료된 이메일입니다.',
         );
       case EmailOtpErrorType.network:
-        return AuthException(
-          code: 'network',
-          message: result.message,
-        );
+        return AuthException(code: 'network', message: result.message);
       case EmailOtpErrorType.server:
-        return AuthException(
-          code: 'server',
-          message: result.message,
-        );
+        return AuthException(code: 'server', message: result.message);
       case EmailOtpErrorType.invalidCode:
       case EmailOtpErrorType.expired:
       case EmailOtpErrorType.notFound:
@@ -245,15 +243,9 @@ class EmailOtpAuthRepository implements AuthRepository {
           message: '잠시 후 다시 시도해 주세요.',
         );
       case EmailOtpErrorType.network:
-        return AuthException(
-          code: 'network',
-          message: result.message,
-        );
+        return AuthException(code: 'network', message: result.message);
       case EmailOtpErrorType.server:
-        return AuthException(
-          code: 'server',
-          message: result.message,
-        );
+        return AuthException(code: 'server', message: result.message);
       case EmailOtpErrorType.unknown:
       case null:
         return AuthException(
