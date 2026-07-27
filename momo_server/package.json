@@ -5,7 +5,9 @@
     "scripts": {
         "start": "node server.js",
         "db:view": "node scripts/db-view.js",
-        "db:export": "node scripts/db-view.js --export"
+        "db:export": "node scripts/db-view.js --export",
+        "db:migrate": "node scripts/migrate-sqlite-to-firestore.js",
+        "smoke:store": "node scripts/smoke-user-store.js"
     },
     "dependencies": {
         "bcryptjs": "^3.0.3",
@@ -13,6 +15,7 @@
         "cors": "^2.8.5",
         "dotenv": "^17.4.2",
         "express": "^4.21.2",
+        "firebase-admin": "^13.4.0",
         "jsonwebtoken": "^9.0.3",
         "nodemailer": "^6.10.1"
     }

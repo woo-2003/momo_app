@@ -5,8 +5,11 @@ import 'package:momo_app/data/session_store.dart';
 import 'package:momo_app/domain/auth_repository.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
 import 'package:momo_app/presentation/screens/main_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MomoApp());
 }
 

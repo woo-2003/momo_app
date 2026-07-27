@@ -2,7 +2,12 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const { findByEmail, isNicknameTaken, createUser } = require("../services/userService");
+const {
+  findByEmail,
+  isNicknameTaken,
+  createUser,
+  ConflictError,
+} = require("../services/userService");
 const { isEmailVerified, clearOtpForEmail } = require("../services/otpService");
 
 const router = express.Router();
@@ -29,8 +34,17 @@ function isValidNickname(nickname) {
   return length >= NICKNAME_MIN_LENGTH && length <= NICKNAME_MAX_LENGTH;
 }
 
+function isConflictError(e) {
+  return (
+    e &&
+    (e.code === "USER_CONFLICT" ||
+      e.code === "SQLITE_CONSTRAINT_UNIQUE" ||
+      e instanceof ConflictError)
+  );
+}
+
 // 닉네임 중복 확인
-router.get("/check-nickname", (req, res) => {
+router.get("/check-nickname", async (req, res) => {
   try {
     const nickname = (req.query.nickname || "").toString().trim();
 
@@ -49,7 +63,7 @@ router.get("/check-nickname", (req, res) => {
       });
     }
 
-    const taken = isNicknameTaken(nickname);
+    const taken = await isNicknameTaken(nickname);
     return res.status(200).json({
       success: true,
       available: !taken,
@@ -114,14 +128,14 @@ router.post("/signup", async (req, res) => {
       });
     }
 
-    if (findByEmail(email)) {
+    if (await findByEmail(email)) {
       return res.status(409).json({
         success: false,
         message: "이미 가입된 이메일입니다.",
       });
     }
 
-    if (isNicknameTaken(nickname)) {
+    if (await isNicknameTaken(nickname)) {
       return res.status(409).json({
         success: false,
         message: "이미 사용 중인 닉네임입니다.",
@@ -132,15 +146,14 @@ router.post("/signup", async (req, res) => {
 
     let userId;
     try {
-      userId = createUser({
+      userId = await createUser({
         email: email.trim(),
         passwordHash,
         nickname: nickname.trim(),
         birthdate,
       });
     } catch (e) {
-      // UNIQUE 제약 위반(동시 가입 등) 대비
-      if (e && e.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      if (isConflictError(e)) {
         return res.status(409).json({
           success: false,
           message: "이미 사용 중인 이메일 또는 닉네임입니다.",
@@ -182,7 +195,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const user = findByEmail(email);
+    const user = await findByEmail(email);
 
     // 계정 존재 여부와 무관하게 동일한 메시지로 응답 (계정 열거 방지)
     const invalidResponse = () =>

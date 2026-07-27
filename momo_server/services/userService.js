@@ -1,31 +1,39 @@
-const db = require("../db");
+/**
+ * 사용자 저장소 파사드.
+ * STORAGE=firestore|sqlite (기본: firestore)
+ *
+ * 반환 shape (findByEmail):
+ *   { id, email, password_hash, nickname, birthdate, created_at }
+ */
 
-const findByEmailStmt = db.prepare(
-  "SELECT id, email, password_hash, nickname, birthdate, created_at FROM users WHERE email = ?"
-);
-const isNicknameTakenStmt = db.prepare(
-  "SELECT 1 FROM users WHERE nickname = ? LIMIT 1"
-);
-const insertUserStmt = db.prepare(
-  `INSERT INTO users (email, password_hash, nickname, birthdate)
-   VALUES (@email, @passwordHash, @nickname, @birthdate)`
-);
+const storage = (process.env.STORAGE || "firestore").toLowerCase();
 
-function findByEmail(email) {
-  return findByEmailStmt.get(email);
+const store =
+  storage === "sqlite"
+    ? require("./sqliteUserStore")
+    : require("./firestoreUserStore");
+
+async function findByEmail(email) {
+  return store.findByEmail(email);
 }
 
-function isNicknameTaken(nickname) {
-  return isNicknameTakenStmt.get(nickname) !== undefined;
+async function isNicknameTaken(nickname) {
+  return store.isNicknameTaken(nickname);
 }
 
-function createUser({ email, passwordHash, nickname, birthdate }) {
-  const info = insertUserStmt.run({ email, passwordHash, nickname, birthdate });
-  return info.lastInsertRowid;
+async function createUser(params) {
+  return store.createUser(params);
+}
+
+async function listUsersForExport() {
+  return store.listUsersForExport();
 }
 
 module.exports = {
   findByEmail,
   isNicknameTaken,
   createUser,
+  listUsersForExport,
+  storage,
+  ConflictError: store.ConflictError || class ConflictError extends Error {},
 };
