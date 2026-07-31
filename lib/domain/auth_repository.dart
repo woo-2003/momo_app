@@ -11,15 +11,15 @@ abstract class AuthRepository {
   /// 로그인
   ///
   /// 입력
-  /// - [userId]   : 영문/숫자 4~20자
-  /// - [password] : 영문+숫자 포함 8자 이상
+  /// - [email]    : 가입에 사용한 이메일
+  /// - [password] : 비밀번호
   ///
   /// 반환: 인증 성공 시 발급된 [AuthSession]
   /// 실패: [AuthException]
-  ///   - `invalid-credentials` : ID/PW 불일치
-  ///   - `account-locked`      : 잠금 상태
+  ///   - `invalid-credentials` : 이메일/비밀번호 불일치
   ///   - `network`             : 네트워크 오류
-  Future<AuthSession> login({required String userId, required String password});
+  ///   - `server`              : 서버 오류
+  Future<AuthSession> login({required String email, required String password});
 
   /// 이메일로 OTP(6자리 숫자) 전송
   ///
@@ -94,6 +94,31 @@ abstract class AuthRepository {
   ///   - `nickname-taken`  : 이미 사용 중
   ///   - `nickname-policy` : 길이/형식 위반
   Future<void> checkNicknameAvailability({required String nickname});
+
+  /// 회원가입 완료
+  ///
+  /// OTP 인증을 통과한 이메일로 계정을 생성한다.
+  ///
+  /// 입력
+  /// - [email]             : 인증을 통과한 이메일
+  /// - [password]          : 정책에 부합하는 비밀번호 (서버에서 해싱 저장)
+  /// - [birthDate]         : 생년월일
+  /// - [nickname]          : 2~10자, 중복되지 않은 닉네임
+  /// - [verificationToken] : verifyOtp 로 발급된 토큰
+  ///
+  /// 성공 시 정상 종료.
+  /// 실패: [AuthException]
+  ///   - `email-not-verified` : 이메일 미인증
+  ///   - `conflict`           : 이메일/닉네임 중복
+  ///   - `validation`         : 입력값 정책 위반
+  ///   - `network` / `server` : 통신/서버 오류
+  Future<void> completeSignUp({
+    required String email,
+    required String password,
+    required DateTime birthDate,
+    required String nickname,
+    required VerificationToken verificationToken,
+  });
 }
 
 /// ---------------------------------------------------------------------------
@@ -131,6 +156,9 @@ class AuthSession {
   /// 식별용 사용자 ID
   final String userId;
 
+  /// 표시용 닉네임 (선택)
+  final String? nickname;
+
   /// API 호출용 액세스 토큰
   final String accessToken;
 
@@ -142,6 +170,7 @@ class AuthSession {
 
   const AuthSession({
     required this.userId,
+    this.nickname,
     required this.accessToken,
     required this.accessTokenExpiresAt,
     this.refreshToken,

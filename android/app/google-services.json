@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "376587346595",
+    "project_id": "momoserver-4d336",
+    "storage_bucket": "momoserver-4d336.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:376587346595:android:d9598f3198ab0eaea59516",
+        "android_client_info": {
+          "package_name": "com.example.momo_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5QCmoxbG56s8V1pu-tJzj8ZzMJsdhKYY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

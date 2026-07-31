@@ -13,10 +13,15 @@ class MockAuthRepository implements AuthRepository {
 
   @override
   Future<AuthSession> login({
-    required String userId,
+    required String email,
     required String password,
-  }) {
-    throw _notImplemented('login');
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    return AuthSession(
+      userId: email,
+      accessToken: 'mock-access-token',
+      accessTokenExpiresAt: DateTime.now().toUtc().add(const Duration(days: 7)),
+    );
   }
 
   @override
@@ -83,6 +88,17 @@ class MockAuthRepository implements AuthRepository {
         message: ValidationMessages.nicknameTaken,
       );
     }
+  }
+
+  @override
+  Future<void> completeSignUp({
+    required String email,
+    required String password,
+    required DateTime birthDate,
+    required String nickname,
+    required VerificationToken verificationToken,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
   }
 
   AuthException _notImplemented(String method) => AuthException(

@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/constants.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/mock_auth_repository.dart';
+import 'package:momo_app/data/session_store.dart';
 import 'package:momo_app/domain/auth_repository.dart';
 import 'package:momo_app/presentation/screens/main_screen.dart';
 
@@ -106,13 +108,48 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
     setState(() => _isCompleting = true);
 
     try {
-      // TODO: 회원가입 완료 API 연동
-      // await widget.authRepository.completeSignUp(...);
+      await widget.authRepository.completeSignUp(
+        email: widget.email,
+        password: widget.password,
+        birthDate: widget.birthDate,
+        nickname: _nicknameController.text.trim(),
+        verificationToken: widget.verificationToken,
+      );
+
+      // 가입 직후 동일 계정으로 자동 로그인하여 세션(JWT)을 확보·저장한다.
+      // 자동 로그인이 실패하더라도 가입 자체는 완료된 것이므로 메인으로 진행한다.
+      try {
+        final session = await widget.authRepository.login(
+          email: widget.email,
+          password: widget.password,
+        );
+        await SessionStore().save(session);
+
+        // ===== [DEBUG] 가입 후 토큰 발급 확인용 — 확인 후 이 블록을 삭제하세요 =====
+        if (kDebugMode) {
+          debugPrint('[SIGNUP] 가입 + 자동 로그인 성공');
+          debugPrint('[SIGNUP] userId=${session.userId}, nickname=${session.nickname}');
+          debugPrint('[SIGNUP] token=${session.accessToken}');
+          debugPrint('[SIGNUP] expiresAt=${session.accessTokenExpiresAt}');
+        }
+        // ===== [DEBUG] 끝 =====
+      } catch (e) {
+        // ===== [DEBUG] 자동 로그인 실패 확인용 — 확인 후 이 블록을 삭제하세요 =====
+        if (kDebugMode) {
+          debugPrint('[SIGNUP] 가입은 성공했으나 자동 로그인 실패: $e');
+        }
+        // ===== [DEBUG] 끝 =====
+      }
 
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(builder: (_) => const MainScreen()),
         (route) => false,
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
       );
     } finally {
       if (mounted) setState(() => _isCompleting = false);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:momo_app/core/constants.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/mock_auth_repository.dart';
 import 'package:momo_app/domain/auth_repository.dart';
@@ -27,11 +28,23 @@ class _PasswordSetupScreenState extends State<PasswordSetupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
-  bool get _canContinue {
+  bool get _isPasswordValid =>
+      ValidationPatterns.password.hasMatch(_passwordController.text);
+
+  bool get _passwordsMatch {
     final password = _passwordController.text;
     final confirm = _confirmController.text;
-    return password.isNotEmpty && password == confirm;
+    return confirm.isNotEmpty && password == confirm;
   }
+
+  bool get _canContinue => _isPasswordValid && _passwordsMatch;
+
+  bool get _showPasswordPolicyError =>
+      _passwordController.text.isNotEmpty && !_isPasswordValid;
+
+  bool get _showMismatchError =>
+      _confirmController.text.isNotEmpty &&
+      _passwordController.text != _confirmController.text;
 
   @override
   void initState() {
@@ -97,7 +110,7 @@ class _PasswordSetupScreenState extends State<PasswordSetupScreen> {
                 enableSuggestions: false,
                 style: MomoTextStyles.body,
                 decoration: InputDecoration(
-                  hintText: '비밀번호 입력 (8자 이상)',
+                  hintText: ValidationMessages.passwordRule,
                   suffixIcon: IconButton(
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
@@ -111,6 +124,15 @@ class _PasswordSetupScreenState extends State<PasswordSetupScreen> {
                   ),
                 ),
               ),
+              if (_showPasswordPolicyError) ...[
+                const SizedBox(height: MomoSpacing.xs),
+                Text(
+                  ValidationMessages.passwordRule,
+                  style: MomoTextStyles.caption.copyWith(
+                    color: MomoColors.error,
+                  ),
+                ),
+              ],
               const SizedBox(height: MomoSpacing.sm),
               TextField(
                 controller: _confirmController,
@@ -133,6 +155,15 @@ class _PasswordSetupScreenState extends State<PasswordSetupScreen> {
                   ),
                 ),
               ),
+              if (_showMismatchError) ...[
+                const SizedBox(height: MomoSpacing.xs),
+                Text(
+                  ValidationMessages.passwordMismatch,
+                  style: MomoTextStyles.caption.copyWith(
+                    color: MomoColors.error,
+                  ),
+                ),
+              ],
               const SizedBox(height: MomoSpacing.sm),
               ElevatedButton(
                 onPressed: _canContinue ? _onContinue : null,

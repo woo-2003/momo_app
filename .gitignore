@@ -1,3 +1,12 @@
+# Environment / secrets
+.env
+.env.local
+**/.env
+**/.env.local
+
+# Node (momo_server)
+**/node_modules/
+
 # Miscellaneous
 *.class
 *.log
@@ -43,3 +52,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+#커서 계획 파일
+.cursor/

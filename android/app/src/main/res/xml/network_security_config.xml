@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 개발용: 로컬 서버(에뮬레이터의 10.0.2.2 = 호스트 PC)와 localhost 에만
+         평문(HTTP) 통신을 허용한다. 그 외 도메인은 기본값(HTTPS 강제)을 유지. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
