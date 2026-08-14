@@ -7,10 +7,12 @@ import 'package:momo_app/presentation/screens/login_screen.dart';
 import 'package:momo_app/presentation/screens/main_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:momo_app/test_for_server/ngrok.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  sendLocationData(); // test for server
   runApp(const MomoApp());
 }
 
