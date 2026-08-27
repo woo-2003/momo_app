@@ -5,7 +5,7 @@
 | 문서명 | NICE아이디 휴대폰본인확인 연동 |
 | 상태 | **미구현 — 구현 계약** |
 | 작성일 | 2026-08-27 |
-| 수정 | 2026-08-27 — 이메일 ID 유지 + 전체 서비스 이용 시 NICE(전화/PASS) 필수 |
+| 개정 | 2026-08-27 — **14세 미만 가입 방지**. 이메일 OTP 직후 NICE 필수 |
 | 제공사 | [NICE아이디 휴대폰본인확인](https://www.niceid.co.kr/prod_mobile.nc) |
 | 전제 | [인증_기능명세서.md](인증_기능명세서.md) (이메일 OTP·JWT·Firestore `users`) |
 | 대상 | `momo_server` 우선. Flutter 화면은 후속 |
@@ -16,43 +16,36 @@
 
 | 구분 | 정책 |
 | --- | --- |
-| **계정 ID** | **이메일**. 가입·로그인·세션의 주 식별자는 이메일+비밀번호 |
-| **가입** | 기존과 동일 — 이메일 OTP → 비밀번호 → 생년월일 → 닉네임 |
-| **로그인** | 이메일+비밀번호 → JWT. NICE로 로그인하지 않음 |
-| **전체 서비스 이용** | NICE 휴대폰본인확인 **완료 필수**. 미완료면 제한 모드 |
-| **본인확인 수단** | NICE 한 창구. 사용자가 UI에서 **문자(전화) / PASS·간편** 중 선택. momo가 둘을 따로 구현하지 않음 |
+| **계정 ID** | **이메일** + 비밀번호 |
+| **가입 중 이메일** | 기존과 같이 이메일 OTP로 소유 확인 |
+| **가입 중 본인확인** | 이메일 OTP **성공 직후 NICE 필수**. 생략·나중 인증 불가 |
+| **가입 연령** | NICE 생년월일 기준 **만 14세 미만이면 가입 거부** |
+| **NICE 수단** | 제공사 UI에서 문자(전화) / PASS·간편 선택. momo는 단일 연동 |
+| **로그인** | 이메일+비밀번호. NICE로 로그인하지 않음 |
+
+### 가입 순서 (필수)
 
 ```
-이메일 가입·로그인  ──►  계정 생성·JWT (기본 이용: 제한)
-                              │
-                              ▼
-                    NICE 본인확인 (전화 문자 또는 PASS)
-                              │
-                              ▼
-                    identityVerified = true  ──►  전체 서비스
+이메일 입력
+  → sendOtp / verifyOtp (이메일)
+  → NICE 본인확인 (필수)     ★ 신규 OTP 통과 후에만
+  → 연령 검사 (만 14세 미만이면 중단)
+  → 비밀번호 · 닉네임 등 나머지 가입 단계
+  → POST /signup
 ```
 
-**제한 모드(미본인확인)** 에서 허용하는 것(권장):
+생년월일 화면의 **자기신고만으로 14세 미만을 막지 않는다.**  
+가입 허용 여부의 연령 SSoT는 **NICE가 준 생년월일**이다.
 
-- 로그인·로그아웃·세션
-- 본인확인(NICE) 시작/상태 조회
-- (선택) 프로필·설정 조회
-
-**전체 서비스** (본인확인 후):
-
-- 모임 생성·참여·채팅·지도 마커 등 서비스 API
-- 기획상 성인 전용 카테고리 등은 추가로 `isAdult` 검사
-
-자체 SMS OTP·Firebase Phone Auth는 도입하지 않는다. 전화/PASS는 모두 NICE를 통한다.
+자체 SMS·Firebase Phone Auth는 쓰지 않는다.
 
 ---
 
 ## 1. 목적
 
-- 통신사 PASS / 간편인증 / 문자인증을 NICE로 처리한다.
-- 서버만 NICE와 연동한다. 앱은 HTTP + (이후) WebView.
-- 주민등록번호는 저장하지 않는다. 허용 필드만 Firestore에 남긴다.
-- **이메일은 ID, NICE는 서비스 이용 자격(본인확인 게이트)** 로 역할을 분리한다.
+- 14세 미만 가입을 막기 위해, 가입 플로우에 NICE 휴대폰본인확인을 넣는다.
+- 이메일은 ID·로그인용, NICE는 **가입 자격(연령·본인) 확인**용이다.
+- 서버만 NICE와 연동. 주민번호 원문 저장 금지.
 
 ---
 
@@ -62,279 +55,308 @@
 
 | ID | 내용 |
 | --- | --- |
-| N-01 | `POST /identity/nice/start` |
-| N-02 | NICE 콜백·복호화·검증 |
-| N-03 | `GET /identity/nice/status` |
-| N-04 | 성공 시 `users`에 본인확인 반영 → `identityVerified=true` |
-| N-05 | 서비스 API에 **본인확인 게이트** (`identityVerified`) |
-| N-06 | `GET /me/identity` — 게이트·성인 여부 요약 |
-| N-07 | Mock (`NICE_MODE=mock`) |
+| N-01 | 이메일 OTP 검증과 연결된 NICE start (가입용 세션) |
+| N-02 | 콜백·복호화·연령 판정 |
+| N-03 | status 조회 |
+| N-04 | **만 14세 미만 → 가입 불가** (`underage`) |
+| N-05 | `/signup`이 **유효한 NICE 가입 토큰** 없이 완료되지 않게 함 |
+| N-06 | Mock 모드 |
 
 ### 2.2 Out of scope (당차)
 
 | 항목 | 비고 |
 | --- | --- |
-| Flutter NICE WebView 화면 | 후속 |
-| 이메일을 전화/PASS로 대체한 가입 | 하지 않음 |
-| NICE 단독 로그인 | 하지 않음 |
-| 아이핀·실명확인 단독 상품 | 휴대폰본인확인만 |
-| 자체 SMS 서버 | NICE 문자 사용 |
+| Flutter WebView UI | 후속 |
+| 로그인 후 나중에 본인확인 | **하지 않음** (가입 시 필수) |
+| NICE 로그인 대체 | 하지 않음 |
+| 부모 동의로 14세 미만 가입 | 당차 미지원 (거절만) |
+| 만 19세 소셜 게이트 | 본 문서 주 목적 아님. `isAdult19`는 선택 저장 |
 
-### 2.3 단계별 용도
+### 2.3 기존 명세와의 차이
 
-| 단계 | 용도 |
+| 이전 초안 | 본 개정 |
 | --- | --- |
-| **1차** | 이메일 가입·로그인 후 **필수 본인확인**. 미완료 시 모임 등 차단 |
-| **2차** | ID/비밀번호 찾기 전 본인확인 (`purpose`) |
-| **하지 않음** | 가입 전에 NICE만으로 계정 생성 |
+| 가입 후 제한 모드 → 나중에 NICE | **OTP 직후 NICE 필수**, 통과 전 `/signup` 불가 |
+| 게이트 = 서비스 이용 | 게이트 = **가입 자체** (14세 미만 차단) |
+| `identityVerified`로 모임 차단 | 가입 완료 사용자는 이미 NICE 통과 |
 
 ---
 
-## 3. 아키텍처
+## 3. 가입 상태 머신
+
+서버(또는 짧은 TTL 세션)가 이메일 단위로 상태를 가진다.
+
+| 상태 | 의미 | 다음 |
+| --- | --- | --- |
+| `email_pending` | OTP 미검증 | verifyOtp |
+| `email_verified` | 이메일 OTP 통과 | **NICE start만 허용** |
+| `nice_pending` | NICE 진행 중 | callback / status |
+| `nice_verified` | NICE 성공 + 만 14세 이상 | 비밀번호·닉네임·signup |
+| `blocked_underage` | NICE 성공 but 만 14세 미만 | 가입 종료. signup 거부 |
+| `registered` | signup 완료 | 로그인 |
+
+`email_verified`에서 NICE를 건너뛰고 signup 호출 → **403 `nice-required`**.
+
+---
+
+## 4. 아키텍처
 
 ```
-이메일 OTP 가입 / 이메일 로그인  →  JWT  (인증_기능명세서)
-         │
-         ▼
-제한 모드: identityVerified == false
-         │
-POST /identity/nice/start (Bearer JWT)
-WebView → NICE (문자 또는 PASS)
-callback → momo_server
-GET /identity/nice/status
-         │
-         ▼
-users.identityVerified = true
-         │
-         ▼
-전체 서비스 API (모임·채팅 등) 허용
+앱
+  POST /send-email-otp
+  POST /verify-email-otp          → email_verified
+  POST /identity/nice/start       → purpose=sign_up, email(+이메일 verified 증명)
+  WebView → NICE
+  callback → 서버
+  GET /identity/nice/status
+       ├─ underage → blocked_underage (가입 중단 UI)
+       └─ ok → nice_verified + signupToken
+  POST /signup { ..., signupToken }  → users 생성
 ```
 
-비밀키·사이트코드는 서버 `.env`만.
+로그인 JWT는 **가입 완료 후**에만 발급된다.  
+가입 중 NICE start는 JWT 대신 **이메일 OTP 검증 증표**를 쓴다.
 
 ---
 
-## 4. NICE 인증 방식
+## 5. 연령 규칙 (14세 미만 가입 방지)
 
-제공사 UI에서 사용자가 선택. momo는 **전화 문자 vs PASS를 구분한 API를 두지 않는다.**
+| 항목 | 규칙 |
+| --- | --- |
+| 기준 | NICE 제공 생년월일 |
+| 임계 | **만 14세 미만** → 가입 불가 |
+| 계산 | 서버만 수행 (KST 기준 권장, 팀에서 고정) |
+| 미만 | `status=failed` 또는 전용 `blocked_underage`, 코드 `underage` |
+| 이상 | 가입 계속. `birthDate`는 NICE 값으로 signup에 고정 가능 |
 
-| 방식 | 사용자 체감 | momo 처리 |
-| --- | --- | --- |
-| PASS/QR | PASS 앱 | 동일 start/callback/status |
-| 간편인증 | PASS 푸시 | 동일 |
-| 문자인증 | SMS 인증번호 | 동일 |
-
-성공 시 계약·동의 범위에 따라: 성명, 성별, 생년월일, 내/외국인, 이통사, 휴대폰번호, **CI/DI**.  
-원문 주민번호 취급·저장 금지.
+선택 필드 `isAdult19`: 만 19세 이상 여부(소셜 등 후속).  
+**가입 허용과 무관.** 가입 허용은 “만 14세 이상”만 보면 된다.
 
 ---
 
-## 5. 데이터
+## 6. 데이터
 
-### 5.1 Firestore `users` 추가 필드
+### 6.1 가입 중 세션 (`signup_sessions/{id}` 또는 메모리)
 
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| **identityVerified** | boolean | **서비스 게이트**. NICE 성공 시 `true`. 기본 `false` |
-| identityProvider | string | `"none"` \| `"nice"` |
-| niceVerifiedAt | string \| null | ISO-8601 UTC |
-| isAdult | boolean \| null | NICE 생년월일 기준 만 19세+. 미인증 null |
-| ci | string \| null | 중복 본인 방지 키 |
-| di | string \| null | 사업자별 DI |
-| phoneHash | string \| null | 전화 HMAC (원문 비권장) |
-| phoneMasked | string \| null | `010-****-1234` |
-| niceName | string \| null | 동의 시에만. 공개 닉네임으로 강제 노출하지 않음 |
-
-계정 로그인 ID는 계속 **`email`**.  
-`identityVerified`가 꺼져 있으면 이메일은 유효해도 **전체 서비스 불가**.
-
-기존 `birthDate`(가입 자기신고)는 유지.  
-성인 전용 기능 SSoT: **`identityVerified && isAdult === true`**.
-
-### 5.2 `identity_tx/{txId}`
+이메일 OTP·NICE를 잇는 서버 측 상태. TTL 예: 30분.
 
 | 필드 | 설명 |
 | --- | --- |
-| txId | UUID |
-| userId | JWT `sub` |
-| status | `pending` \| `success` \| `failed` |
-| purpose | 1차 `link_identity` (필수 본인확인) |
-| createdAt / expiresAt | 약 10분 |
-| failReason | 선택 |
+| sessionId | 서버 발급 |
+| email | |
+| emailVerifiedAt | |
+| niceTxId | |
+| niceStatus | pending / verified / underage / failed |
+| birthDateFromNice | 성공 시 |
+| ci / di | 성공 시 (signup 시 users로 이전) |
+| phoneHash / phoneMasked | 성공 시 |
+| signupToken | `nice_verified`일 때만 발급. 1회성 |
+| expiresAt | |
 
----
+앱은 `sessionId` 또는 `signupToken`을 이후 단계에 전달한다.
 
-## 6. 서비스 게이트 규칙
+### 6.2 Firestore `users` (가입 완료 후)
 
-미들웨어 예: `requireIdentityVerified`.
+기존 필드 + 본인확인 결과:
 
-| API 유형 | `identityVerified` |
+| 필드 | 설명 |
 | --- | --- |
-| 로그인·OTP·signup·NICE start/status | 불필요 (또는 로그인만) |
-| `GET /me`, `GET /me/identity` | 불필요 |
-| 모임 CRUD·참여·채팅·실시간 소켓 join | **필수** → 없으면 **403 `identity-required`** |
-| 성인 전용 카테고리 | 추가로 `isAdult === true` → 없으면 **403 `adult-required`** |
+| email | ID |
+| birthDate | **NICE 생년월일** 권장 (자기신고와 불일치 시 NICE 우선) |
+| identityProvider | `"nice"` |
+| niceVerifiedAt | |
+| ci / di | 중복 가입 방지 |
+| phoneHash / phoneMasked | |
+| isAdult19 | 선택 (만 19+) |
 
-소켓(실시간 서버 명세)도 `join` 시 동일 검사.
-
-앱 UX(후속): 로그인 직후 `GET /me/identity`로 게이트 확인 → 미완료면 본인확인 유도 화면. **로그아웃시키지는 않음.**
-
----
-
-## 7. 연령 계산
-
-- NICE 생년월일 기준 만 19세 이상 → `isAdult = true`
-- 서버만 계산·저장. 클라이언트 제출값 무시
+`identityVerified`는 가입 완료 사용자는 사실상 항상 true이므로,  
+명시 필드 대신 `niceVerifiedAt != null`로 봐도 된다.
 
 ---
 
-## 8. HTTP API
+## 7. HTTP API
 
-공통 JSON. start/status/`/me/identity`는 `Authorization: Bearer <JWT>`. callback은 NICE→서버.
+### 7.1 이메일 OTP (기존, 연동 포인트)
 
-### 8.1 `POST /identity/nice/start`
-
-```json
-{ "purpose": "link_identity" }
-```
-
-이미 `identityVerified === true`이면 200으로 재인증 허용(정보 갱신)하거나 409 `already-verified` — **1차는 재인증 허용(덮어쓰기, CI 충돌만 검사)** 권장.
-
-**200:** `{ success, txId, authUrl, expiresAt }`
-
-### 8.2 콜백
-
-NICE → `POST /identity/nice/callback` (또는 Return URL).  
-성공 시:
-
-- `identityVerified = true`
-- `identityProvider = "nice"`
-- `niceVerifiedAt`, `isAdult`, `ci`/`di`, phone 해시·마스킹 등
-
-CI가 **다른 userId에 존재** → tx `failed`, `identity-conflict`. 덮어쓰지 않음.
-
-### 8.3 `GET /identity/nice/status?txId=`
+- `POST /verify-email-otp` 성공 시 → 서버가 `signup_session`을 만들거나 갱신하고, 응답에 `sessionId`를 포함하도록 **확장**한다.
 
 ```json
 {
   "success": true,
-  "txId": "uuid",
-  "status": "success",
-  "identityVerified": true,
-  "isAdult": true,
-  "phoneMasked": "010-****-1234",
-  "verifiedAt": "2026-08-27T15:05:00.000Z"
+  "message": "Email verified successfully",
+  "sessionId": "uuid"
+}
+```
+
+(기존 앱 호환이 필요하면 당분간 `sessionId` optional + 구버전은 막기.)
+
+### 7.2 `POST /identity/nice/start`
+
+**인증:** JWT 아님. `sessionId` (이메일 verified 상태) 필수.
+
+```json
+{
+  "sessionId": "uuid",
+  "purpose": "sign_up"
+}
+```
+
+**처리**
+
+1. session이 `email_verified` 또는 `nice_pending`인지 확인
+2. 아니면 403 `email-not-verified`
+3. NICE tx 생성, session → `nice_pending`
+4. `authUrl` 반환
+
+**200:** `{ success, txId, authUrl, expiresAt }`
+
+### 7.3 콜백
+
+NICE → 서버.  
+성공 시 연령 계산:
+
+- 만 14세 미만 → session `blocked_underage`, users **생성 안 함**, `signupToken` 없음  
+- 만 14세 이상 → session `nice_verified`, `signupToken` 발급  
+- CI가 **이미 가입된 users에 존재** → `identity-conflict` (재가입 차단)
+
+### 7.4 `GET /identity/nice/status`
+
+쿼리: `txId` 또는 `sessionId`.
+
+**만 14세 이상 성공**
+
+```json
+{
+  "success": true,
+  "status": "verified",
+  "signupToken": "one-time-token",
+  "birthDate": "2008-05-01",
+  "phoneMasked": "010-****-1234"
+}
+```
+
+**미만**
+
+```json
+{
+  "success": false,
+  "status": "underage",
+  "code": "underage",
+  "message": "만 14세 미만은 가입할 수 없습니다."
 }
 ```
 
 CI/DI·성명·전화 원문 미포함.
 
-### 8.4 `GET /me/identity`
+### 7.5 `POST /signup` (기존 확장)
+
+기존 body + **`signupToken` 필수**.
 
 ```json
 {
-  "success": true,
   "email": "user@example.com",
-  "identityVerified": false,
-  "identityProvider": "none",
-  "isAdult": null,
-  "niceVerifiedAt": null,
-  "phoneMasked": null
+  "password": "...",
+  "nickname": "...",
+  "signupToken": "one-time-token"
 }
 ```
 
-앱이 “전체 서비스 가능 여부”를 판단하는 **주 API**.
+- `birthdate` 클라이언트 값은 **무시하거나**, NICE 값과 불일치 시 400.  
+  권장: body에서 빼고 서버가 session의 NICE `birthDate`만 저장.
+- OTP `verified`만으로는 부족. **`signupToken` 유효**해야 함.
+- 성공 후 session·token 무효화, OTP 클리어.
+- 없으면 403 `nice-required` / 401 `token-invalid`.
 
 ---
 
-## 9. 에러 코드
+## 8. 에러 코드
 
 | code | HTTP | 상황 |
 | --- | --- | --- |
-| `unauthorized` | 401 | JWT |
-| `identity-required` | 403 | 본인확인 전 서비스 API |
-| `adult-required` | 403 | 성인 전용 |
-| `validation` | 400 | |
-| `tx-not-found` | 404 | |
+| `email-not-verified` | 403 | NICE start 전 OTP 미통과 |
+| `nice-required` | 403 | signup 시 NICE/signupToken 없음 |
+| `underage` | 403 | 만 14세 미만 |
+| `identity-conflict` | 409 | CI 기가입 |
+| `token-invalid` | 401 | signupToken 위조·만료·재사용 |
 | `tx-expired` | 410 | |
-| `identity-conflict` | 409 | CI 타 계정 |
 | `nice-upstream` | 502 | |
-| `not-implemented` | 501 | live 미설정 |
+| `unauthorized` / `validation` | 401 / 400 | |
 
 ---
 
-## 10. 환경변수
+## 9. 환경변수
 
 | 키 | 설명 |
 | --- | --- |
-| `NICE_MODE` | `mock` \| `live` (기본 `mock`) |
-| `NICE_SITE_CODE` | |
-| `NICE_SITE_PASSWORD` | |
+| `NICE_MODE` | `mock` \| `live` |
+| `NICE_SITE_CODE` / `NICE_SITE_PASSWORD` | |
 | `NICE_RETURN_URL` | |
-| `PHONE_HASH_SECRET` | phoneHash HMAC |
-| (NICE 추가 키) | 발급 후 `.env.example` 반영 |
+| `PHONE_HASH_SECRET` | |
+| `SIGNUP_TOKEN_SECRET` | signupToken 서명(선택) |
 
 ---
 
-## 11. Mock (`NICE_MODE=mock`)
+## 10. Mock
 
-1. `start` → `txId` + `authUrl`
-2. `POST /identity/nice/mock-complete` `{ "txId", "isAdult": true }` (live 비활성)
-3. `identityVerified=true` 등 반영
-4. `status` / `GET /me/identity`로 확인
-5. 모임 API 스모크: 인증 전 403 → 인증 후 200
+1. 이메일 verify → `sessionId`
+2. nice/start → txId  
+3. `POST /identity/nice/mock-complete`  
+   `{ "sessionId", "birthDate": "2015-01-01" }` → underage  
+   `{ "sessionId", "birthDate": "2005-01-01" }` → signupToken  
+4. underage로 signup → 실패  
+5. 정상 token으로 signup → users 생성  
 
----
-
-## 12. 보안·개인정보
-
-- 동의문에 NICE 수집 항목·**서비스 이용을 위한 본인확인 필수** 명시
-- 로그에 CI 전체·전화 원문·복호화 전문 금지
-- 콜백 HTTPS, tx 1회성
-- 앱에 사이트 패스워드 금지
+live에서 mock-complete 비활성.
 
 ---
 
-## 13. 기존 인증과의 관계
+## 11. 보안·개인정보
+
+- 만 14세 미만 가입 불가·본인확인 필수 고지
+- NICE 수집 항목 동의문 명시
+- 로그에 CI·전화 원문·복호화 전문 금지
+- signupToken 1회성·짧은 TTL
+- underage 세션도 CI를 users에 넣지 않음 (선택: 남용 방지용 underage 시도 로그만)
+
+---
+
+## 12. 기존 인증과의 관계
 
 | 기존 | 관계 |
 | --- | --- |
-| 이메일 = ID | **유지. 메인 가입·로그인** |
-| 이메일 OTP | 가입용. NICE와 독립 |
-| JWT | 로그인 증명. 본인확인과 별개 |
-| NICE | **전체 서비스 이용 자격** |
-| `birthDate` | 가입 수집 유지. 성인 기능은 `isAdult` |
-| 모임·채팅 API | `identityVerified` 필수 |
+| 이메일 = ID | 유지 |
+| 이메일 OTP | 가입 1단계. **직후 NICE** |
+| 생년월일 입력 화면 | NICE 생년월일로 대체하거나 확인용만. **가입 연령 판정에 단독 사용 금지** |
+| `/signup` OTP verified만 | **부족**. signupToken(NICE) 추가 |
+| 로그인 | 이메일+PW. 가입 시 이미 NICE 완료 |
 
 ---
 
-## 14. 구현 순서
+## 13. 구현 순서
 
 | 단계 | 작업 |
 | --- | --- |
-| 0 | NICE 신청·테스트 코드 |
-| 1 | `users.identityVerified` 등 필드 |
-| 2 | mock start / complete / status / `/me/identity` |
-| 3 | 모임 등 라우트에 `requireIdentityVerified` |
-| 4 | curl: 미인증 403 → mock 인증 → 허용 |
-| 5 | live 콜백 |
-| 6 | Flutter: 로그인 후 게이트 UI + WebView |
+| 1 | signup_session + verifyOtp 응답에 sessionId |
+| 2 | nice start/status/callback + 14세 판정 |
+| 3 | signup에 signupToken 게이트 |
+| 4 | mock underage / 정상 스모크 |
+| 5 | live NICE |
+| 6 | 앱: OTP 다음 화면 = NICE WebView → 통과 후 비밀번호 |
 
 ---
 
-## 15. 검수 체크리스트
+## 14. 검수 체크리스트
 
-- [ ] 이메일만으로 가입·로그인 가능
-- [ ] 미본인확인 시 모임/채팅 → 403 `identity-required`
-- [ ] mock 본인확인 후 `identityVerified=true`, 서비스 API 허용
-- [ ] NICE UI상 문자·PASS 모두 동일 서버 플로우로 완료 가능(live)
-- [ ] CI 중복 → conflict, 두 번째 계정 미반영
-- [ ] `/me/identity`에 ci/전화 원문 없음
-- [ ] 이메일 로그인을 NICE가 대체하지 않음
+- [ ] 이메일 OTP만으로 signup → 403 `nice-required`
+- [ ] NICE 없이 비밀번호 단계로 가는 API 우회 불가
+- [ ] mock 생년월일 만 14세 미만 → `underage`, users 없음
+- [ ] 만 14세 이상 → signupToken → signup 201
+- [ ] 동일 CI 재가입 → conflict
+- [ ] 로그인 ID는 이메일 유지
 
 ---
 
-## 16. 참고
+## 15. 참고
 
 - https://www.niceid.co.kr/prod_mobile.nc  
-- 암복호화·콜백 필드명은 **NICE 공식 연동 가이드**가 최종 SSoT.
+- 암복호화·콜백 형식은 NICE 공식 가이드가 최종 SSoT.

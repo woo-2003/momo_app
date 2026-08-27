@@ -6,7 +6,7 @@ import 'package:momo_app/presentation/screens/login_screen.dart';
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
-  // ===== [DEBUG] 임시 로그아웃 — 테스트용, 나중에 이 메서드와 버튼을 삭제하세요 =====
+  // ===== [DEBUG] 임시 로그아웃 =====
   Future<void> _onLogout(BuildContext context) async {
     await SessionStore().clear();
     if (!context.mounted) return;
@@ -26,7 +26,7 @@ class MainScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: MomoSpacing.md),
           child: Column(
             children: [
-              // ===== [DEBUG] 임시 로그아웃 버튼 — 테스트용, 나중에 삭제하세요 =====
+              // ===== [DEBUG] 임시 로그아웃 버튼 =====
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -42,7 +42,7 @@ class MainScreen extends StatelessWidget {
               // ===== [DEBUG] 끝 =====
               const Spacer(),
               Text(
-                '무슨 지도 API쓸건지 기획서에 없어서 비워둠',
+                '무슨 지도 API쓸건지 기획서에 없어서 비워둠', //결정되면 지우기 google map api 사용
                 textAlign: TextAlign.center,
                 style: MomoTextStyles.body.copyWith(color: MomoColors.textSub),
               ),

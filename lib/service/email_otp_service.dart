@@ -71,7 +71,6 @@ class EmailOtpService {
   }
 
   /// 닉네임 사용 가능 여부 조회.
-  ///
   /// 사용 가능하면 true, 이미 사용 중이면 false.
   /// 네트워크/서버/정책 오류 시 [ApiException].
   Future<bool> checkNicknameAvailable(String nickname) async {

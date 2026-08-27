@@ -68,7 +68,7 @@ class _AppEntryState extends State<_AppEntry> {
             session != null &&
             session.accessTokenExpiresAt.isAfter(DateTime.now().toUtc());
 
-        // ===== [DEBUG] 자동 로그인 상태 확인용 — 확인 후 이 블록을 삭제하세요 =====
+        // ===== [DEBUG] =====
         if (kDebugMode) {
           if (loggedIn) {
             debugPrint('[AUTO-LOGIN] 저장된 세션 발견 → 자동 로그인');
