@@ -1,3 +1,6 @@
+// 앱 진입점.
+// Firebase는 클라이언트 Auth가 아니라 설정 초기화용.
+// 라우터(GoRouter 등) 없음. home + Navigator.push 로만 화면 이동.
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/theme.dart';
@@ -16,6 +19,7 @@ void main() async {
   runApp(const MomoApp());
 }
 
+/// 루트 MaterialApp. 테마만 주입하고 첫 화면은 [_AppEntry].
 class MomoApp extends StatelessWidget {
   const MomoApp({super.key});
 

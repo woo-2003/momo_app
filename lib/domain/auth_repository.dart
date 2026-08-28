@@ -1,4 +1,7 @@
 /// momo 인증 도메인 - Repository 인터페이스
+///
+/// 화면은 AuthRepository 만 의존. 실구현 EmailOtp / UI용 Mock.
+/// findId·changePassword 는 인터페이스만 있고 화면·서버 미구현.
 
 ///
 /// 모든 메서드는 비동기로 동작하며, 실패 시 [AuthException] 을 던진다.
@@ -102,9 +105,12 @@ abstract class AuthRepository {
   /// 입력
   /// - [email]             : 인증을 통과한 이메일
   /// - [password]          : 정책에 부합하는 비밀번호 (서버에서 해싱 저장)
-  /// - [birthDate]         : 생년월일
   /// - [nickname]          : 2~10자, 중복되지 않은 닉네임
   /// - [verificationToken] : verifyOtp 로 발급된 토큰
+  ///
+  /// [변경 2026-08-27] birthDate 파라미터 제거.
+  ///   앱 가입 플로우에서 생년월일 화면을 빼서 더 이상 받지 않음.
+  ///   PASS 연동 시 서버/통신사에서 신원 수신 예정.
   ///
   /// 성공 시 정상 종료.
   /// 실패: [AuthException]
@@ -115,10 +121,20 @@ abstract class AuthRepository {
   Future<void> completeSignUp({
     required String email,
     required String password,
-    required DateTime birthDate,
+    // [변경] required DateTime birthDate 삭제됨
     required String nickname,
     required VerificationToken verificationToken,
   });
+  // ---------------------------------------------------------------------------
+  // [롤백] 변경 전 시그니처
+  // Future<void> completeSignUp({
+  //   required String email,
+  //   required String password,
+  //   required DateTime birthDate,
+  //   required String nickname,
+  //   required VerificationToken verificationToken,
+  // });
+  // ---------------------------------------------------------------------------
 }
 
 /// ---------------------------------------------------------------------------
@@ -126,6 +142,7 @@ abstract class AuthRepository {
 /// ---------------------------------------------------------------------------
 
 /// OTP 사용 목적
+/// changePassword·findId 는 enum만 존재. 가입(signUp)만 화면에서 사용.
 enum OtpPurpose {
   /// 회원가입 - 이메일 인증
   signUp,

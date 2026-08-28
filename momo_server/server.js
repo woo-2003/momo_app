@@ -1,3 +1,5 @@
+// momo_server 진입점. OTP + 인증 HTTP만.
+// STORAGE=firestore|sqlite. 모임/지도/채팅 라우트 없음.
 require("dotenv").config();
 
 const express = require("express");

@@ -1,3 +1,6 @@
+// UI 단독 검증용. 프로덕션 기본 경로는 EmailOtpAuthRepository.
+// PasswordSetup / Birthdate / Nickname 화면 fallback 이 Mock 이면
+// 앞 단계(Email)와 구현체가 어긋날 수 있음.
 import 'package:momo_app/core/constants.dart';
 import 'package:momo_app/domain/auth_repository.dart';
 
@@ -90,16 +93,28 @@ class MockAuthRepository implements AuthRepository {
     }
   }
 
+  // [변경 2026-08-27] birthDate 파라미터 제거 (AuthRepository 시그니처와 맞춤)
   @override
   Future<void> completeSignUp({
     required String email,
     required String password,
-    required DateTime birthDate,
     required String nickname,
     required VerificationToken verificationToken,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
   }
+
+  // [롤백] 변경 전
+  // @override
+  // Future<void> completeSignUp({
+  //   required String email,
+  //   required String password,
+  //   required DateTime birthDate,
+  //   required String nickname,
+  //   required VerificationToken verificationToken,
+  // }) async {
+  //   await Future<void>.delayed(const Duration(milliseconds: 400));
+  // }
 
   AuthException _notImplemented(String method) => AuthException(
         code: 'network',

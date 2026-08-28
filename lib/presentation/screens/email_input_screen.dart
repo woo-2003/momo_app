@@ -6,6 +6,8 @@ import 'package:momo_app/domain/auth_repository.dart';
 import 'package:momo_app/presentation/screens/otp_input_screen.dart';
 
 //시작하기 누르면 뜨는 이메일 인증받는 화면
+// 가입 1단계. 기본 repo = EmailOtpAuthRepository (실서버).
+// 성공 시 OtpInputScreen 으로 email·expiresAt·동일 repo 전달.
 class EmailInputScreen extends StatefulWidget {
   EmailInputScreen({super.key, AuthRepository? authRepository})
     : authRepository = authRepository ?? EmailOtpAuthRepository();

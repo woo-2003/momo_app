@@ -1,5 +1,8 @@
+// UI 토큰: Intense Peach.
+// 공유 위젯 폴더는 비어 있음. 화면마다 Scaffold/버튼을 직접 구성.
 import 'package:flutter/material.dart';
 
+/// 브랜드·상태 색. Material ColorScheme 매핑은 [MomoTheme.light].
 class MomoColors {
   const MomoColors._();
 

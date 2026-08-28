@@ -7,6 +7,8 @@ import 'package:momo_app/data/session_store.dart';
 import 'package:momo_app/domain/auth_repository.dart';
 import 'package:momo_app/presentation/screens/main_screen.dart';
 
+// 기존 계정 로그인. 이메일+비밀번호 -> SessionStore -> Main (스택 초기화).
+// 기본 repo = EmailOtpAuthRepository.
 class LoginFormScreen extends StatefulWidget {
   LoginFormScreen({super.key, AuthRepository? authRepository})
     : authRepository = authRepository ?? EmailOtpAuthRepository();
