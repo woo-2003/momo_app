@@ -16,6 +16,7 @@ enum EmailOtpErrorType {
   expired,
   notFound,
   alreadyVerified,
+  emailAlreadyUsed,
   tooManyRequests,
   unknown,
 }
@@ -305,6 +306,9 @@ class EmailOtpService {
     }
     if (statusCode == 400 && message == 'Already verified') {
       return EmailOtpErrorType.alreadyVerified;
+    }
+    if (statusCode == 409) {
+      return EmailOtpErrorType.emailAlreadyUsed;
     }
     if (statusCode >= 500) {
       return EmailOtpErrorType.server;

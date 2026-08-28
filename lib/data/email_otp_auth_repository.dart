@@ -230,6 +230,13 @@ class EmailOtpAuthRepository implements AuthRepository {
           code: 'email-already-used',
           message: '이미 인증이 완료된 이메일입니다.',
         );
+      case EmailOtpErrorType.emailAlreadyUsed:
+        return AuthException(
+          code: 'email-already-used',
+          message: result.message.isNotEmpty
+              ? result.message
+              : '이미 가입된 이메일입니다.',
+        );
       case EmailOtpErrorType.network:
         return AuthException(code: 'network', message: result.message);
       case EmailOtpErrorType.server:
@@ -269,6 +276,13 @@ class EmailOtpAuthRepository implements AuthRepository {
         return const AuthException(
           code: 'email-already-used',
           message: '이미 인증이 완료된 이메일입니다.',
+        );
+      case EmailOtpErrorType.emailAlreadyUsed:
+        return AuthException(
+          code: 'email-already-used',
+          message: result.message.isNotEmpty
+              ? result.message
+              : '이미 가입된 이메일입니다.',
         );
       case EmailOtpErrorType.tooManyRequests:
         return const AuthException(

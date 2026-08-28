@@ -4,6 +4,7 @@ const express = require("express");
 const nodemailer = require("nodemailer");
 
 const { createOtpForEmail, verifyOtpForEmail } = require("../services/otpService");
+const { findByEmail } = require("../services/userService");
 
 const router = express.Router();
 
@@ -32,6 +33,13 @@ router.post("/send-email-otp", async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "email is required",
+      });
+    }
+
+    if (await findByEmail(email)) {
+      return res.status(409).json({
+        success: false,
+        message: "이미 가입된 이메일입니다.",
       });
     }
 
