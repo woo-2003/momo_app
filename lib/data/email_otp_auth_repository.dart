@@ -1,3 +1,6 @@
+// 실서버 연동 AuthRepository.
+// Email/Login/OTP 화면의 기본 구현체.
+// findId·changePassword 는 not-implemented.
 import 'package:momo_app/core/constants.dart';
 import 'package:momo_app/domain/auth_repository.dart';
 import 'package:momo_app/service/email_otp_service.dart';
@@ -75,6 +78,8 @@ class EmailOtpAuthRepository implements AuthRepository {
     final result = await _otpService.verifyEmailOtp(email, code);
 
     if (result.success) {
+      // 클라이언트 opaque 토큰. signup HTTP body에는 안 실리고
+      // 서버는 이메일 OTP verified 상태로 가입을 게이트한다.
       return VerificationToken(
         value: 'email-verified:$email',
         expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 10)),
@@ -131,11 +136,16 @@ class EmailOtpAuthRepository implements AuthRepository {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // [변경 2026-08-27] completeSignUp
+  // - 이전: birthDate 필수 → _formatBirthdate → signup(birthdate: ...)
+  // - 지금: birthDate 없음. signup 에 email/password/nickname 만 전달
+  // - _formatBirthdate 헬퍼도 제거됨
+  // ---------------------------------------------------------------------------
   @override
   Future<void> completeSignUp({
     required String email,
     required String password,
-    required DateTime birthDate,
     required String nickname,
     required VerificationToken verificationToken,
   }) async {
@@ -144,19 +154,42 @@ class EmailOtpAuthRepository implements AuthRepository {
         email: email.trim(),
         password: password,
         nickname: nickname.trim(),
-        birthdate: _formatBirthdate(birthDate),
       );
     } on ApiException catch (e) {
       throw _mapSignupException(e);
     }
   }
 
-  String _formatBirthdate(DateTime date) {
-    final year = date.year.toString().padLeft(4, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '$year-$month-$day';
-  }
+  // ---------------------------------------------------------------------------
+  // [롤백] 변경 전 completeSignUp + _formatBirthdate 전문
+  //
+  // @override
+  // Future<void> completeSignUp({
+  //   required String email,
+  //   required String password,
+  //   required DateTime birthDate,
+  //   required String nickname,
+  //   required VerificationToken verificationToken,
+  // }) async {
+  //   try {
+  //     await _otpService.signup(
+  //       email: email.trim(),
+  //       password: password,
+  //       nickname: nickname.trim(),
+  //       birthdate: _formatBirthdate(birthDate),
+  //     );
+  //   } on ApiException catch (e) {
+  //     throw _mapSignupException(e);
+  //   }
+  // }
+  //
+  // String _formatBirthdate(DateTime date) {
+  //   final year = date.year.toString().padLeft(4, '0');
+  //   final month = date.month.toString().padLeft(2, '0');
+  //   final day = date.day.toString().padLeft(2, '0');
+  //   return '$year-$month-$day';
+  // }
+  // ---------------------------------------------------------------------------
 
   AuthException _mapSignupException(ApiException e) {
     switch (e.statusCode) {

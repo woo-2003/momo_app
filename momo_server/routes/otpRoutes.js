@@ -1,3 +1,5 @@
+// OTP 라우트: POST /send-email-otp, POST /verify-email-otp.
+// Gmail SMTP. OTP 상태는 otpService 인메모리 Map.
 const express = require("express");
 const nodemailer = require("nodemailer");
 

@@ -1,3 +1,5 @@
+// 로컬 세션 영속. 앱 재실행 시 main._AppEntry 가 read() 로 자동 로그인.
+// hasValidSession() 은 정의만 있고 현재 호출처 없음.
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';

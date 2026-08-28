@@ -1,17 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/constants.dart';
 import 'package:momo_app/core/theme.dart';
-import 'package:momo_app/data/mock_auth_repository.dart';
+import 'package:momo_app/data/email_otp_auth_repository.dart';
 import 'package:momo_app/domain/auth_repository.dart';
-import 'package:momo_app/presentation/screens/birthdate_input_screen.dart';
+import 'package:momo_app/presentation/screens/nickname_setup_screen.dart';
+// [롤백용 import] 생년월일 화면 다시 쓸 때 아래 주석 해제 + nickname import 정리
+// import 'package:momo_app/data/mock_auth_repository.dart';
+// import 'package:momo_app/presentation/screens/birthdate_input_screen.dart';
 
+// =============================================================================
+// [변경] 가입 플로우에서 생년월일 화면 스킵 (2026-08-27)
+// - 이전: 계속 → BirthdateInputScreen
+// - 지금: 계속 → NicknameSetupScreen
+// - PASS 화면은 나중에 비밀번호와 닉네임 사이에 추가
+// - fallback: MockAuthRepository → EmailOtpAuthRepository (실서버 유지)
+// - BirthdateInputScreen 파일은 삭제하지 않고 보관
+//   (birthdate_input_screen.dart 상단 [플로우에서 뺌] 참고)
+// =============================================================================
+// [롤백] 생성자 fallback 변경 전:
+//   }) : authRepository = authRepository ?? MockAuthRepository();
+// =============================================================================
 class PasswordSetupScreen extends StatefulWidget {
   PasswordSetupScreen({
     super.key,
     required this.email,
     required this.verificationToken,
     AuthRepository? authRepository,
-  }) : authRepository = authRepository ?? MockAuthRepository();
+  }) : authRepository = authRepository ?? EmailOtpAuthRepository();
 
   final String email;
   final VerificationToken verificationToken;
@@ -56,9 +71,10 @@ class _PasswordSetupScreenState extends State<PasswordSetupScreen> {
   void _onInputChanged() => setState(() {});
 
   void _onContinue() {
+    // [변경] BirthdateInputScreen 대신 NicknameSetupScreen 으로 직행
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => BirthdateInputScreen(
+        builder: (_) => NicknameSetupScreen(
           email: widget.email,
           verificationToken: widget.verificationToken,
           password: _passwordController.text,
@@ -66,6 +82,22 @@ class _PasswordSetupScreenState extends State<PasswordSetupScreen> {
         ),
       ),
     );
+    // -------------------------------------------------------------------------
+    // [롤백] 변경 전 _onContinue (생년월일 화면으로 이동)
+    // birthdate_input_screen.dart import 후 아래 블록으로 교체하면 됨.
+    // NicknameSetup 에 birthDate 다시 받도록도 같이 롤백해야 함.
+    //
+    // Navigator.of(context).push(
+    //   MaterialPageRoute<void>(
+    //     builder: (_) => BirthdateInputScreen(
+    //       email: widget.email,
+    //       verificationToken: widget.verificationToken,
+    //       password: _passwordController.text,
+    //       authRepository: widget.authRepository,
+    //     ),
+    //   ),
+    // );
+    // -------------------------------------------------------------------------
   }
 
   @override

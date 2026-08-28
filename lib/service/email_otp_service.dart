@@ -1,3 +1,6 @@
+// momo_server REST 클라이언트.
+// Base: Web/iOS localhost:3000, Android 에뮬 10.0.2.2:3000.
+// 모임/지도/채팅 API 없음.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -5,6 +8,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+/// OTP 실패 유형. AuthRepository 가 AuthException.code 로 매핑한다.
 enum EmailOtpErrorType {
   network,
   server,
@@ -40,6 +44,7 @@ class EmailOtpResult {
   }
 }
 
+/// HTTP로 OTP·로그인·가입·닉네임 확인을 호출한다.
 class EmailOtpService {
   EmailOtpService({String? baseUrl}) : _baseUrl = baseUrl ?? _defaultBaseUrl;
 
@@ -52,6 +57,7 @@ class EmailOtpService {
   final String _baseUrl;
   static const Duration _timeout = Duration(seconds: 10);
 
+  /// POST /send-email-otp
   Future<void> sendEmailOtp(String email) async {
     final result = await _post(
       endpoint: '/send-email-otp',
@@ -63,6 +69,7 @@ class EmailOtpService {
     }
   }
 
+  /// POST /verify-email-otp
   Future<EmailOtpResult> verifyEmailOtp(String email, String code) async {
     return _post(
       endpoint: '/verify-email-otp',
@@ -141,11 +148,15 @@ class EmailOtpService {
   /// 회원가입 완료 요청.
   ///
   /// 성공 시 정상 종료, 실패 시 [ApiException] (statusCode + message).
+  ///
+  /// [변경 2026-08-27]
+  /// - 이전: required String birthdate 있고 body 에 'birthdate' 포함
+  /// - 지금: birthdate 파라미터/필드 없음 (앱에서 생년월일 미수집)
   Future<void> signup({
     required String email,
     required String password,
     required String nickname,
-    required String birthdate,
+    // [변경] required String birthdate 삭제됨
   }) async {
     try {
       final response = await http
@@ -156,7 +167,7 @@ class EmailOtpService {
               'email': email,
               'password': password,
               'nickname': nickname,
-              'birthdate': birthdate,
+              // [변경] 'birthdate': birthdate 전송 안 함
             }),
           )
           .timeout(_timeout);
@@ -178,6 +189,47 @@ class EmailOtpService {
       throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // [롤백] 변경 전 signup 전문 (응답 처리 포함)
+  // Future<void> signup({
+  //   required String email,
+  //   required String password,
+  //   required String nickname,
+  //   required String birthdate,
+  // }) async {
+  //   try {
+  //     final response = await http
+  //         .post(
+  //           Uri.parse('$_baseUrl/signup'),
+  //           headers: {'Content-Type': 'application/json'},
+  //           body: jsonEncode({
+  //             'email': email,
+  //             'password': password,
+  //             'nickname': nickname,
+  //             'birthdate': birthdate,
+  //           }),
+  //         )
+  //         .timeout(_timeout);
+  //
+  //     final decoded = _decodeResponse(response.body);
+  //     final message = decoded['message']?.toString() ?? '';
+  //
+  //     if (response.statusCode == 201 && decoded['success'] == true) {
+  //       return;
+  //     }
+  //
+  //     throw ApiException(
+  //       response.statusCode,
+  //       message.isNotEmpty ? message : '회원가입에 실패했습니다.',
+  //     );
+  //   } on SocketException catch (_) {
+  //     throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
+  //   } on TimeoutException catch (_) {
+  //     throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
+  //   }
+  // }
+  // ---------------------------------------------------------------------------
 
   Future<EmailOtpResult> _post({
     required String endpoint,

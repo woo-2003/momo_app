@@ -3,6 +3,8 @@ import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/session_store.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
 
+// 로그인 후 홈. 지도·번개·합류 UI 미구현 (플레이스홀더 문구만).
+// 뉴기획서 장면 A(메인 지도) 가 여기로 들어올 예정.
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
@@ -41,6 +43,7 @@ class MainScreen extends StatelessWidget {
               ),
               // ===== [DEBUG] 끝 =====
               const Spacer(),
+              // 지도 SDK·모임 API 연동 전 스텁.
               Text(
                 '무슨 지도 API쓸건지 기획서에 없어서 비워둠',
                 textAlign: TextAlign.center,

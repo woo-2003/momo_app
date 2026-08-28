@@ -5,6 +5,7 @@
 library;
 
 /// 앱 메타 정보
+/// 화면에서 거의 미사용. 슬로건/제품명은 뉴기획서와 불일치할 수 있음.
 class AppMeta {
   const AppMeta._();
 
@@ -21,6 +22,7 @@ class AppMeta {
 class AuthPolicy {
   const AuthPolicy._();
 
+  // userId(영문 ID) 정책. 현재 가입은 이메일 기준이라 UI에서 미사용.
   static const int idMinLength = 4;
   static const int idMaxLength = 20;
   static const int passwordMinLength = 8;

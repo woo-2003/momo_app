@@ -8,6 +8,8 @@ import 'package:momo_app/data/email_otp_auth_repository.dart';
 import 'package:momo_app/domain/auth_repository.dart';
 import 'package:momo_app/presentation/screens/password_setup_screen.dart';
 
+// 가입 2단계. 6자리 OTP.
+// 재전송 쿨다운·유효시간 타이머. 성공 시 PasswordSetupScreen.
 class OtpInputScreen extends StatefulWidget {
   OtpInputScreen({
     super.key,
@@ -214,6 +216,7 @@ class _OtpInputScreenState extends State<OtpInputScreen> {
   }
 
   Widget _buildOtpInput(String code) {
+    // 보이는 6칸 + 투명 TextField. 입력은 TextField, 표시는 Row 박스.
     return GestureDetector(
       onTap: _requestOtpFocus,
       behavior: HitTestBehavior.opaque,

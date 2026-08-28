@@ -1,3 +1,12 @@
+// =============================================================================
+// [플로우에서 뺌 / 파일 보관] 2026-08-27
+// - 가입 유저플로우에서 이 화면으로 가지 않음 (삭제하지 말 것)
+// - 현재 경로: 비밀번호 → 닉네임 (PasswordSetupScreen 이 직행)
+// - PASS 화면은 나중에 비밀번호와 닉네임 사이에 추가 예정
+// - 한때 파일 삭제됐다가 복구함. 다시 쓸 때 PasswordSetup._onContinue 만
+//   BirthdateInputScreen push 로 되돌리면 됨
+// - NicknameSetupScreen 은 더 이상 birthDate 를 받지 않음
+// =============================================================================
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +15,7 @@ import 'package:momo_app/data/mock_auth_repository.dart';
 import 'package:momo_app/domain/auth_repository.dart';
 import 'package:momo_app/presentation/screens/nickname_setup_screen.dart';
 
+/// 생년월일 입력 (휠 + 텍스트). 현재 가입 경로에서는 미사용(보관).
 class BirthdateInputScreen extends StatefulWidget {
   BirthdateInputScreen({
     super.key,
@@ -219,17 +229,34 @@ class _BirthdateInputScreenState extends State<BirthdateInputScreen> {
   }
 
   void _onContinue() {
+    // 보관용 연결. 현재 가입은 PasswordSetup -> Nickname 직행.
+    // completeSignUp 이 birthDate 를 받지 않으므로 날짜는 넘기지 않음.
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => NicknameSetupScreen(
           email: widget.email,
           verificationToken: widget.verificationToken,
           password: widget.password,
-          birthDate: DateTime(_year, _month, _day),
           authRepository: widget.authRepository,
         ),
       ),
     );
+    // -------------------------------------------------------------------------
+    // [롤백] NicknameSetup 이 birthDate 를 다시 받을 때의 호출
+    // (AuthRepository.completeSignUp 에 birthDate 도 같이 롤백해야 함)
+    //
+    // Navigator.of(context).push(
+    //   MaterialPageRoute<void>(
+    //     builder: (_) => NicknameSetupScreen(
+    //       email: widget.email,
+    //       verificationToken: widget.verificationToken,
+    //       password: widget.password,
+    //       birthDate: DateTime(_year, _month, _day),
+    //       authRepository: widget.authRepository,
+    //     ),
+    //   ),
+    // );
+    // -------------------------------------------------------------------------
   }
 
   @override

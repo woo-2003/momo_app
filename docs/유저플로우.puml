@@ -1,0 +1,449 @@
+@startuml momo_uf_00_boot
+title momo 유저플로우 — 00 앱 기동·세션
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:앱 실행\n(S-00 SessionStore.read);
+if (유효 JWT?) then (예)
+  :S-10 메인 지도;
+  stop
+else (아니오)
+  :S-01 랜딩;
+  stop
+endif
+@enduml
+
+@startuml momo_uf_01_signup_target
+title momo 유저플로우 — 01 가입 (목표: PASS)
+note right
+  뉴기획서 v4.3 기준.
+  직접 생년월일 화면(S-05a) 없음.
+end note
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:S-01 랜딩;
+:시작하기;
+:S-02 이메일 입력;
+:sendOtp;
+if (발송 성공?) then (예)
+  :S-03 OTP 6자리;
+  if (검증 성공?) then (예)
+    :S-04 비밀번호·확인;
+    if (정책 통과?) then (예)
+      :S-05b PASS·통신사 신원 수신;
+      if (14세 미만?) then (예)
+        :가입 불가 안내;
+        stop
+      else (아니오)
+        :S-06 닉네임·중복확인;
+        :completeSignUp;
+        :login + SessionStore.save;
+        :S-10 메인 지도;
+        stop
+      endif
+    else (아니오)
+      :S-04 잔류·에러 표시;
+      stop
+    endif
+  else (아니오)
+    :OTP 재입력 / 재전송;
+    stop
+  endif
+else (아니오)
+  :스낵바·S-02 잔류;
+  stop
+endif
+@enduml
+
+@startuml momo_uf_01b_signup_current
+title momo 유저플로우 - 01b 가입 (현재 앱)
+note right
+  [변경 2026-08-27]
+  생년월일 화면(S-05a) 플로우에서 뺌.
+  파일 birthdate_input_screen.dart 는 보관.
+  PASS는 나중에 비밀번호와 닉네임 사이에 추가.
+
+  [변경 온보딩]
+  닉네임 가입 성공 후 OnboardingScreen 3장 항상 표시.
+  건너뛰기/시작하기 → Main. 로그인 경로는 온보딩 없음.
+
+  [롤백] 변경 전 흐름 (코드 주석 [롤백] 블록과 동일):
+  S-04 비밀번호 -> S-05a 생년월일 -> S-06 닉네임
+end note
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:S-01 랜딩 -> 시작하기;
+:S-02 이메일;
+:S-03 OTP;
+:S-04 비밀번호;
+:S-06 닉네임 / 가입 / 자동로그인;
+:온보딩 3장\n(건너뛰기 가능);
+:S-10 메인;
+stop
+@enduml
+
+@startuml momo_uf_02_login
+title momo 유저플로우 — 02 로그인
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:S-01 랜딩;
+:계정이 이미 있습니다;
+:S-07 이메일·비밀번호;
+:login;
+if (성공?) then (예)
+  :SessionStore.save;
+  :스택 초기화;
+  :S-10 메인 지도;
+  stop
+else (아니오)
+  :스낵바·S-07 잔류;
+  stop
+endif
+@enduml
+
+@startuml momo_uf_03_main
+title momo 유저플로우 - 03 메인 지도 (장면 A)
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:S-10 메인 지도\n오늘 / 근처 3km / 유효 마커\n시간 익음 3단 / 겹치면 익은 것 위;
+
+if (행동?) then (필터)
+  :필터 칩 적용\n전체 / 밥 / 운동 / 카공 / 이동;
+  :S-10 갱신;
+elseif (점 탭?) then (예)
+  :S-11 미리보기 카드;
+  if (카드에서?) then (상세)
+    :S-30 상세;
+  else (참여하기)
+    :S-31 위치 동의;
+  endif
+elseif (점 0개?) then (예)
+  :S-12 빈 지도 CTA;
+  :첫 번개 만들기;
+  :S-20;
+elseif (+ 만들기?) then (예)
+  :S-20 만들기 종류;
+elseif (복숭아?) then (예)
+  :S-14 복숭아 시트;
+else (메뉴)
+  :S-13 프로필 / 내 모임 / 로그아웃;
+endif
+stop
+@enduml
+
+@startuml momo_uf_04_peach
+title momo 유저플로우 — 04 복숭아 시트 (장면 H)
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:S-14 복숭아 시트 열림;
+if (참여 중인 모임?) then (예)
+  :합류로 바로 가기;
+  :S-40 합류;
+  stop
+else (아니오)
+  :오늘 추천 카드;
+  if (추천 실패?) then (예)
+    :가까운 순 폴백;
+  else (아니오)
+  endif
+  :카드 탭 → S-30 상세;
+  stop
+endif
+@enduml
+
+@startuml momo_uf_05_create
+title momo 유저플로우 — 05 번개 만들기 (장면 B~E)
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:S-20 종류 선택\nmeal / sports / study / taxi;
+:S-21 제목·인원·시작(오늘);
+if (이동 taxi?) then (예)
+  :S-23 지금 / 예약;
+  if (지금?) then (예)
+    :도착지\n검색·지도·즐겨찾기≤5;
+    :모집 타이머 30~60초 UI;
+    :면책: 유상운송 아님;
+  else (예약)
+    :출발 시각 + 도착지;
+  endif
+else (아니오)
+endif
+:S-22 만날 장소\n(지도 반 + 시트);
+note right
+  밥·카페 미정이면
+  기본 탭 = 추천 (장면 E)
+end note
+:S-24 확인·생성;
+:S-10 지도에 내 점·카메라 이동;
+stop
+@enduml
+
+@startuml momo_uf_06_place
+title momo 유저플로우 - 06 만날 장소 (장면 C)
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+' 참고: partition + elseif + 중첩 if + 중간 stop 조합은
+' PlantUML이 파티션 이후 노드를 그리지 못하거나 잘리는 경우가 많음.
+' 그래서 partition 없이 평탄한 if 로 작성함.
+
+start
+:S-22 장소 단계;
+
+if (시트 탭?) then (직접 지정)
+  :길게 누르기 / 검색;
+  :핀 확정 후보;
+elseif (추천?) then (예)
+  :추천 로딩 (스켈레톤 3);
+  if (추천 실패?) then (예)
+    :직접만 가능\n만들기는 막지 않음;
+  else (성공)
+    :후보 선택\n이름 / 이유 / 도보 분;
+    :지도 카메라 이동;
+  endif
+else (다른 곳 제안 / 스냅)
+  :부적절 핀 감지;
+  :대안 카드 표시;
+endif
+
+if (택시 골목 등 부적절 핀?) then (예)
+  :경고 다이얼로그;
+  if (사용자 선택?) then (그래도 여기로)
+    :호스트 지정 표시;
+  else (추천 보기)
+    :추천 탭으로 돌아감;
+    kill
+  endif
+else (아니오)
+endif
+
+:이 장소로 정하기;
+:확정 핀 1개;
+:S-24 확인으로;
+stop
+@enduml
+
+@startuml momo_uf_07_detail_join
+title momo 유저플로우 — 07 상세·참여·진행 (장면 F)
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:S-30 상세\n제목·종류·시간·장소·인원·호스트;
+if (역할·상태?) then (게스트·참여하기)
+  if (정원 참?) then (예)
+    :참여 비활성;
+    stop
+  else (아니오)
+    :S-31 위치 동의\n백그라운드 전송 고지;
+    if (동의?) then (예)
+      :참여 처리·푸시 P1(호스트);
+      :S-40 합류;
+      stop
+    else (거부)
+      :참여 가능·합류에 위치 없음;
+      stop
+    endif
+  endif
+elseif (이미 참여) then
+  if (선택?) then (합류 보기)
+    :S-40;
+    stop
+  else (채팅)
+    :S-41;
+    stop
+  endif
+elseif (호스트·진행 N>=2) then
+  :모집 잠금;
+  :푸시 P2;
+  :합류/라이브;
+  stop
+elseif (호스트·취소) then
+  :푸시 P7;
+  :위치 OFF·채팅 읽기만;
+  stop
+else (호스트·수정)
+  :장소/시간 변경·푸시 P6;
+  stop
+endif
+@enduml
+
+@startuml momo_uf_08_rendezvous
+title momo 유저플로우 - 08 합류 (장면 G)
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:S-40 합류 지도\n집결 핀 + 사람 마커;
+:OS 알림: 합류 위치 공유 중;
+:15초마다 좌표 POST\n(앱 백그라운드여도 전송);
+:서버: 거리 / 상태 / 거리 익음;
+:UI 갱신\n500m+ / 200~500 / 50~200 / 도착;
+
+if (사용자 상황?) then (채팅)
+  :S-41;
+elseif (GPS 약함?) then (예)
+  :배너: 마지막 위치 표시 중;
+elseif (응답 없음?) then (예)
+  :상태 응답 없음;
+else (종료 / 나가기)
+  :좌표 삭제;
+  :모임이 끝났어요;
+endif
+stop
+@enduml
+
+@startuml momo_uf_09_chat
+title momo 유저플로우 — 09 채팅·신고
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:S-41 채팅;
+if (모임 상태?) then (ended/cancelled)
+  :읽기만;
+  stop
+else (진행 중)
+  if (전송?) then (텍스트)
+    :전송·푸시 P3;
+  elseif (이미지) then
+    if (업로드 성공?) then (예)
+      :전송·푸시 P3;
+    else (아니오)
+      :토스트·텍스트는 유지 가능;
+    endif
+  else (신고)
+    :S-42 신고;
+  endif
+  stop
+endif
+@enduml
+
+@startuml momo_uf_10_taxi_now_timer
+title momo 유저플로우 — 10 이동·지금 모집 타이머
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+  DiamondBackgroundColor #FFF1EF
+}
+
+start
+:이동·지금 번개 생성됨;
+:모집 타이머 30~60초;
+if (타이머 중?) then (참여 발생)
+  :푸시 P1;
+elseif (호스트가 N>=2로 진행) then
+  :잠금·합류;
+  stop
+else (타이머 종료)
+  :자동 출발 아님;
+  :푸시 P8 → 호스트;
+  if (호스트 진행 N>=2?) then (예)
+    :잠금·합류;
+    stop
+  else (아니오·취소 등)
+    :모집 종료/취소 처리;
+    stop
+  endif
+endif
+stop
+@enduml
+
+@startuml momo_uf_11_demo_loop
+title momo 유저플로우 — 11 MVP 한 바퀴 (성공 기준)
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFF9F1
+  BorderColor #EE8F8F
+}
+
+start
+:가입 또는 로그인;
+:번개 생성 + 장소(직접 또는 추천);
+:다른 계정 참여 + 위치 동의;
+:합류 · 거리 익음 · 백그라운드 위치;
+:채팅 텍스트/이미지;
+:종료 · 위치 OFF;
+stop
+@enduml
+
+@startuml momo_uf_index
+title momo 유저플로우 - 인덱스 (화면 ID)
+skinparam shadowing false
+skinparam legendBackgroundColor #FFF9F1
+skinparam legendBorderColor #EE8F8F
+
+' note as N 은 activity로 오인되면 Syntax Error.
+' 인덱스는 legend 로 둔다.
+legend left
+  기준: docs/뉴기획서.md v4.3.0
+  파일: docs/유저플로우.puml (단일 파일 / 다중 diagram)
+
+  S-00 세션 | S-01 랜딩 | S-02 이메일 | S-03 OTP
+  S-04 비밀번호 | S-05a 생년월일(임시) | S-05b PASS(목표)
+  S-06 닉네임 | S-07 로그인
+  S-10 메인 | S-11 미리보기 | S-12 빈지도 | S-13 메뉴 | S-14 복숭아
+  S-20 종류 | S-21 기본정보 | S-22 장소 | S-23 이동 | S-24 확인
+  S-30 상세 | S-31 위치동의 | S-40 합류 | S-41 채팅 | S-42 신고
+
+  미리보기: 다이어그램 블록(@startuml ~ @enduml) 단위로 열기
+endlegend
+@enduml

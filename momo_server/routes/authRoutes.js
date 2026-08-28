@@ -1,3 +1,11 @@
+// =============================================================================
+// [변경 2026-08-27] POST /signup 생년월일 필수 해제
+// - 이전: email, password, nickname, birthdate 전부 필수. 형식 검증 후 저장
+// - 지금: email, password, nickname 만 필수
+// - birthdate 가 오면 YYYY-MM-DD 검증 후 저장, 없으면 "" 저장 (SQLite NOT NULL 대비)
+// - 이유: 앱 가입 플로우에서 생년월일 화면 제거. PASS 전까지 비울 수 있게
+// =============================================================================
+// 인증 라우트: GET /check-nickname, POST /signup, POST /login.
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -85,12 +93,20 @@ router.post("/signup", async (req, res) => {
   try {
     const { email, password, nickname, birthdate } = req.body;
 
-    if (!email || !password || !nickname || !birthdate) {
+    // [변경] birthdate 필수 조건 제거. email/password/nickname 만 검사
+    if (!email || !password || !nickname) {
       return res.status(400).json({
         success: false,
-        message: "email, password, nickname, birthdate are required",
+        message: "email, password, nickname are required",
       });
     }
+    // [롤백] 변경 전 필수 검사:
+    // if (!email || !password || !nickname || !birthdate) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "email, password, nickname, birthdate are required",
+    //   });
+    // }
 
     if (!EMAIL_REGEX.test(email)) {
       return res.status(400).json({
@@ -113,12 +129,25 @@ router.post("/signup", async (req, res) => {
       });
     }
 
-    if (!BIRTHDATE_REGEX.test(birthdate)) {
+    // [변경] birthdate 없으면 빈 문자열. 있으면 형식만 검증
+    const birthdateValue =
+      typeof birthdate === "string" && birthdate.trim().length > 0
+        ? birthdate.trim()
+        : "";
+
+    if (birthdateValue && !BIRTHDATE_REGEX.test(birthdateValue)) {
       return res.status(400).json({
         success: false,
         message: "생년월일 형식이 올바르지 않습니다. (YYYY-MM-DD)",
       });
     }
+    // [롤백] 변경 전: 항상 형식 검증 (birthdate 필수였음)
+    // if (!BIRTHDATE_REGEX.test(birthdate)) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "생년월일 형식이 올바르지 않습니다. (YYYY-MM-DD)",
+    //   });
+    // }
 
     // 가입 우회 방지: 반드시 OTP 인증을 통과한 이메일만 허용
     if (!isEmailVerified(email)) {
@@ -150,7 +179,9 @@ router.post("/signup", async (req, res) => {
         email: email.trim(),
         passwordHash,
         nickname: nickname.trim(),
-        birthdate,
+        // [변경] 필수 birthdate 대신 birthdateValue (없으면 "")
+        birthdate: birthdateValue,
+        // [롤백] birthdate: birthdate,
       });
     } catch (e) {
       if (isConflictError(e)) {

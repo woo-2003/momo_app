@@ -2,11 +2,42 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/constants.dart';
 import 'package:momo_app/core/theme.dart';
-import 'package:momo_app/data/mock_auth_repository.dart';
+import 'package:momo_app/data/email_otp_auth_repository.dart';
 import 'package:momo_app/data/session_store.dart';
 import 'package:momo_app/domain/auth_repository.dart';
-import 'package:momo_app/presentation/screens/main_screen.dart';
+import 'package:momo_app/presentation/screens/onboarding_screen.dart';
+// [롤백] 온보딩 없이 메인 직행할 때:
+// import 'package:momo_app/presentation/screens/main_screen.dart';
+// [롤백용] fallback 을 Mock 으로 되돌릴 때:
+// import 'package:momo_app/data/mock_auth_repository.dart';
 
+// =============================================================================
+// [변경] 가입 플로우에서 생년월일 제거 (2026-08-27)
+// - 이전: 생성자에 required DateTime birthDate 있었고 completeSignUp 에 전달
+// - 지금: birthDate 인자 삭제. 비밀번호 화면에서 바로 진입
+// - fallback: MockAuthRepository → EmailOtpAuthRepository
+// - PASS 붙이면 이 화면 앞(비밀번호 뒤)에 신원 화면 추가하면 됨
+// - [온보딩] 가입 성공 후 Main 대신 OnboardingScreen (항상 3장)
+// =============================================================================
+// [롤백] 변경 전 생성자/필드 전문:
+// class NicknameSetupScreen extends StatefulWidget {
+//   NicknameSetupScreen({
+//     super.key,
+//     required this.email,
+//     required this.verificationToken,
+//     required this.password,
+//     required this.birthDate,
+//     AuthRepository? authRepository,
+//   }) : authRepository = authRepository ?? MockAuthRepository();
+//
+//   final String email;
+//   final VerificationToken verificationToken;
+//   final String password;
+//   final DateTime birthDate;
+//   final AuthRepository authRepository;
+//   ...
+// }
+// =============================================================================
 enum _NicknameCheckStatus { idle, checking, available, taken }
 
 class NicknameSetupScreen extends StatefulWidget {
@@ -15,14 +46,17 @@ class NicknameSetupScreen extends StatefulWidget {
     required this.email,
     required this.verificationToken,
     required this.password,
-    required this.birthDate,
+    // [변경] birthDate 파라미터 제거됨
+    // required this.birthDate, // [롤백] 이 줄 살리고 아래 final 도 살릴 것
     AuthRepository? authRepository,
-  }) : authRepository = authRepository ?? MockAuthRepository();
+  }) : authRepository = authRepository ?? EmailOtpAuthRepository();
+  // [롤백] }) : authRepository = authRepository ?? MockAuthRepository();
 
   final String email;
   final VerificationToken verificationToken;
   final String password;
-  final DateTime birthDate;
+  // [변경] final DateTime birthDate; 삭제됨
+  // final DateTime birthDate; // [롤백]
   final AuthRepository authRepository;
 
   @override
@@ -108,13 +142,23 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
     setState(() => _isCompleting = true);
 
     try {
+      // [변경] completeSignUp 에서 birthDate 인자 제거. 아래처럼만 호출.
       await widget.authRepository.completeSignUp(
         email: widget.email,
         password: widget.password,
-        birthDate: widget.birthDate,
         nickname: _nicknameController.text.trim(),
         verificationToken: widget.verificationToken,
       );
+      // -----------------------------------------------------------------
+      // [롤백] 변경 전 completeSignUp 호출
+      // await widget.authRepository.completeSignUp(
+      //   email: widget.email,
+      //   password: widget.password,
+      //   birthDate: widget.birthDate,
+      //   nickname: _nicknameController.text.trim(),
+      //   verificationToken: widget.verificationToken,
+      // );
+      // -----------------------------------------------------------------
 
       // 가입 직후 동일 계정으로 자동 로그인하여 세션(JWT)을 확보·저장한다.
       // 자동 로그인이 실패하더라도 가입 자체는 완료된 것이므로 메인으로 진행한다.
@@ -142,10 +186,16 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
       }
 
       if (!mounted) return;
+      // [변경] 가입 직후 메인 대신 온보딩 3장 (항상 표시, 건너뛰기 가능)
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+        MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
         (route) => false,
       );
+      // [롤백] 온보딩 없이 메인으로:
+      // Navigator.of(context).pushAndRemoveUntil(
+      //   MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+      //   (route) => false,
+      // );
     } on AuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
