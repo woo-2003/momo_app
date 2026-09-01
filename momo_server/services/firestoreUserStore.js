@@ -37,6 +37,12 @@ async function findByEmail(email) {
   return mapDoc(snap.docs[0]);
 }
 
+async function findById(userId) {
+  const doc = await getFirestore().collection(USERS).doc(userId).get();
+  if (!doc.exists) return undefined;
+  return mapDoc(doc);
+}
+
 async function isNicknameTaken(nickname) {
   const nicknameLower = normalizeNickname(nickname);
   const snap = await getFirestore()
@@ -92,6 +98,7 @@ class ConflictError extends Error {
 
 module.exports = {
   findByEmail,
+  findById,
   isNicknameTaken,
   createUser,
   listUsersForExport,

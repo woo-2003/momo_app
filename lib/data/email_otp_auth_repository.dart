@@ -24,6 +24,7 @@ class EmailOtpAuthRepository implements AuthRepository {
       );
       return AuthSession(
         userId: result.email,
+        accountId: result.accountId,
         nickname: result.nickname,
         accessToken: result.token,
         accessTokenExpiresAt: DateTime.now().toUtc().add(

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- debug 빌드: LAN IP 등 개발 서버 HTTP 전체 허용.
+         IP 변경 시 lib/core/server_config.dart → devPcLanIp 수정 후 flutter run 재실행. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

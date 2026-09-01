@@ -170,8 +170,11 @@ class VerificationToken {
 
 /// 로그인 성공 시 발급되는 세션 정보
 class AuthSession {
-  /// 식별용 사용자 ID
+  /// 로그인 이메일 (표시·식별용)
   final String userId;
+
+  /// 서버 users 문서 ID (= JWT sub). 모임 API 사용자 키.
+  final String? accountId;
 
   /// 표시용 닉네임 (선택)
   final String? nickname;
@@ -187,6 +190,7 @@ class AuthSession {
 
   const AuthSession({
     required this.userId,
+    this.accountId,
     this.nickname,
     required this.accessToken,
     required this.accessTokenExpiresAt,
