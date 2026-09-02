@@ -3,6 +3,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/session_store.dart';
+import 'package:momo_app/data/meeting_store.dart';
+import 'package:momo_app/domain/taxi_pod_meeting.dart';
+import 'package:momo_app/presentation/screens/create_taxi_pod_screen.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
 import 'package:momo_app/presentation/widgets/create_meeting_sheet.dart';
 
@@ -31,10 +34,12 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedFilterIndex = 0;
   GoogleMapController? _mapController;
   bool _myLocationEnabled = false;
+  Set<Marker> _markers = {};
 
   @override
   void initState() {
     super.initState();
+    _markers = _buildMarkers();
     _initMyLocation();
   }
 
@@ -96,6 +101,57 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  Set<Marker> _buildMarkers() {
+    final showTaxi = _selectedFilterIndex == 0 || _selectedFilterIndex == 1;
+    if (!showTaxi) return {};
+
+    return {
+      for (final meeting in MeetingStore.instance.taxiPods)
+        Marker(
+          markerId: MarkerId('taxi_${meeting.id}'),
+          position: meeting.markerPosition,
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange,
+          ),
+          infoWindow: InfoWindow(title: meeting.title),
+        ),
+    };
+  }
+
+  void _refreshMarkers() {
+    setState(() => _markers = _buildMarkers());
+  }
+
+  Future<void> _onAddPressed() async {
+    final type = await showCreateMeetingSheet(context);
+    if (!mounted || type == null) return;
+
+    if (type == CreateMeetingType.gathering) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('모임 생성은 준비 중이에요.')),
+      );
+      return;
+    }
+
+    final created = await Navigator.of(context).push<TaxiPodMeeting>(
+      MaterialPageRoute(builder: (_) => const CreateTaxiPodScreen()),
+    );
+
+    if (!mounted) return;
+    _refreshMarkers();
+
+    if (created != null) {
+      await _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(created.markerPosition, 16),
+      );
+    }
+  }
+
+  void _onFilterSelected(int index) {
+    setState(() => _selectedFilterIndex = index);
+    _refreshMarkers();
+  }
+
   // ===== [DEBUG] 임시 로그아웃 — 테스트용, 나중에 이 메서드와 Drawer 항목을 삭제하세요 =====
   Future<void> _onLogout() async {
     await SessionStore().clear();
@@ -142,6 +198,7 @@ class _MainScreenState extends State<MainScreen> {
             child: GoogleMap(
               initialCameraPosition: _initialCamera,
               onMapCreated: _onMapCreated,
+              markers: _markers,
               myLocationEnabled: _myLocationEnabled,
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
@@ -168,9 +225,7 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                       ),
                       const Spacer(),
-                      _MapAddButton(
-                        onPressed: () => showCreateMeetingSheet(context),
-                      ),
+                      _MapAddButton(onPressed: _onAddPressed),
                     ],  
                   ),
                 ),
@@ -189,9 +244,7 @@ class _MainScreenState extends State<MainScreen> {
                       return _MapFilterChip(
                         label: _filters[index],
                         selected: selected,
-                        onTap: () {
-                          setState(() => _selectedFilterIndex = index);
-                        },
+                        onTap: () => _onFilterSelected(index),
                       );
                     },
                   ),
