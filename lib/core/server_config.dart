@@ -30,6 +30,7 @@ class ServerConfig {
   static const int devServerPort = 3000;
 
   /// true = Android 에뮬레이터, false = USB/실제 폰·태블릿
+  /// 에뮬 네트워크 오류시 false에서 true로 변경 (기본은 false)
   static const bool useAndroidEmulator = false;
   // ───────────────────────────────────────────────────────────────────
 
