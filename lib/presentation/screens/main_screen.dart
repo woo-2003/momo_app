@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/session_store.dart';
@@ -28,6 +29,72 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   int _selectedFilterIndex = 0;
+  GoogleMapController? _mapController;
+  bool _myLocationEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initMyLocation();
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initMyLocation() async {
+    final granted = await _ensureLocationPermission();
+    if (!granted || !mounted) return;
+
+    setState(() => _myLocationEnabled = true);
+    await _moveCameraToCurrentPosition();
+  }
+
+  Future<bool> _ensureLocationPermission() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return false;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    return permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
+  }
+
+  Future<void> _moveCameraToCurrentPosition() async {
+    final controller = _mapController;
+    if (controller == null) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(position.latitude, position.longitude),
+            zoom: 16,
+          ),
+        ),
+      );
+    } catch (_) {
+      // 권한·GPS 미설정 시 초기 카메라(서울 시청) 유지.
+    }
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+    if (_myLocationEnabled) {
+      _moveCameraToCurrentPosition();
+    }
+  }
 
   // ===== [DEBUG] 임시 로그아웃 — 테스트용, 나중에 이 메서드와 Drawer 항목을 삭제하세요 =====
   Future<void> _onLogout() async {
@@ -71,10 +138,11 @@ class _MainScreenState extends State<MainScreen> {
       ),
       body: Stack(
         children: [
-          const Positioned.fill(
+          Positioned.fill(
             child: GoogleMap(
               initialCameraPosition: _initialCamera,
-              myLocationEnabled: false,
+              onMapCreated: _onMapCreated,
+              myLocationEnabled: _myLocationEnabled,
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
