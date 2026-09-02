@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/session_store.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
 import 'package:momo_app/presentation/widgets/create_meeting_sheet.dart';
 
-// 로그인 후 홈 — 장면 A(메인 지도) UI 스켈레톤.
-// 지도 SDK 연동 전: 배경은 빈 플레이스홀더. GoogleMap 으로 교체 예정.
+// 로그인 후 홈 — 장면 A(메인 지도).
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -14,6 +14,11 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  static const CameraPosition _initialCamera = CameraPosition(
+    target: LatLng(37.5665, 126.9780),
+    zoom: 14,
+  );
+
   static const List<String> _filters = [
     '전체',
     '택시팟',
@@ -66,7 +71,15 @@ class _MainScreenState extends State<MainScreen> {
       ),
       body: Stack(
         children: [
-          const Positioned.fill(child: _MapPlaceholder()),
+          const Positioned.fill(
+            child: GoogleMap(
+              initialCameraPosition: _initialCamera,
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+            ),
+          ),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -90,7 +103,7 @@ class _MainScreenState extends State<MainScreen> {
                       _MapAddButton(
                         onPressed: () => showCreateMeetingSheet(context),
                       ),
-                    ],
+                    ],  
                   ),
                 ),
                 SizedBox(
@@ -127,28 +140,6 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// GoogleMap 연동 전 빈 지도 영역.
-class _MapPlaceholder extends StatelessWidget {
-  const _MapPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            MomoColors.surface,
-            MomoColors.background,
-            MomoColors.surface.withValues(alpha: 0.6),
-          ],
-        ),
       ),
     );
   }
