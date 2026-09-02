@@ -33,6 +33,12 @@ class EmailOtpAuthRepository implements AuthRepository {
       );
     } on ApiException catch (e) {
       throw _mapLoginException(e);
+    } catch (e) {
+      throw AuthException(
+        code: 'network',
+        message: '네트워크 오류입니다. 연결을 확인해 주세요.',
+        cause: e,
+      );
     }
   }
 

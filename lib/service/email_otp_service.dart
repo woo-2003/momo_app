@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:momo_app/core/server_config.dart';
 
@@ -96,6 +97,8 @@ class EmailOtpService {
       throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
     } on TimeoutException catch (_) {
       throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
+    } on http.ClientException catch (_) {
+      throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
     }
   }
 
@@ -107,9 +110,29 @@ class EmailOtpService {
     required String password,
   }) async {
     try {
+      return await _loginAt(_baseUrl, email: email, password: password);
+    } on ApiException catch (e) {
+      final fallback = ServerConfig.androidFallbackBaseUrl(_baseUrl);
+      if (e.statusCode != 0 || fallback == null) rethrow;
+      if (kDebugMode) {
+        debugPrint('[LOGIN] $_baseUrl 연결 실패 → $fallback 재시도');
+      }
+      return _loginAt(fallback, email: email, password: password);
+    }
+  }
+
+  Future<LoginResponse> _loginAt(
+    String baseUrl, {
+    required String email,
+    required String password,
+  }) async {
+    try {
+      if (kDebugMode) {
+        debugPrint('[LOGIN] POST $baseUrl/login');
+      }
       final response = await http
           .post(
-            Uri.parse('$_baseUrl/login'),
+            Uri.parse('$baseUrl/login'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'email': email, 'password': password}),
           )
@@ -132,9 +155,13 @@ class EmailOtpService {
         response.statusCode,
         message.isNotEmpty ? message : '로그인에 실패했습니다.',
       );
+    } on ApiException {
+      rethrow;
     } on SocketException catch (_) {
       throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
     } on TimeoutException catch (_) {
+      throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
+    } on http.ClientException catch (_) {
       throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
     }
   }
@@ -180,6 +207,8 @@ class EmailOtpService {
     } on SocketException catch (_) {
       throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
     } on TimeoutException catch (_) {
+      throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
+    } on http.ClientException catch (_) {
       throw const ApiException(0, '네트워크 오류입니다. 연결을 확인해 주세요.');
     }
   }
@@ -257,6 +286,11 @@ class EmailOtpService {
         '네트워크 오류입니다. 연결을 확인해 주세요.',
       );
     } on TimeoutException catch (_) {
+      return EmailOtpResult.failure(
+        EmailOtpErrorType.network,
+        '네트워크 오류입니다. 연결을 확인해 주세요.',
+      );
+    } on http.ClientException catch (_) {
       return EmailOtpResult.failure(
         EmailOtpErrorType.network,
         '네트워크 오류입니다. 연결을 확인해 주세요.',
