@@ -18,6 +18,7 @@ class SessionStore {
     final prefs = await SharedPreferences.getInstance();
     final json = jsonEncode({
       'userId': session.userId,
+      'accountId': session.accountId,
       'nickname': session.nickname,
       'accessToken': session.accessToken,
       'refreshToken': session.refreshToken,
@@ -36,6 +37,7 @@ class SessionStore {
       final map = jsonDecode(raw) as Map<String, dynamic>;
       return AuthSession(
         userId: map['userId'] as String,
+        accountId: map['accountId'] as String?,
         nickname: map['nickname'] as String?,
         accessToken: map['accessToken'] as String,
         refreshToken: map['refreshToken'] as String?,

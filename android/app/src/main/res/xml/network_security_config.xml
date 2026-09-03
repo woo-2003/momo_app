@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- 개발용: 로컬 서버(에뮬레이터의 10.0.2.2 = 호스트 PC)와 localhost 에만
-         평문(HTTP) 통신을 허용한다. 그 외 도메인은 기본값(HTTPS 강제)을 유지. -->
+    <!--
+      개발용 HTTP(cleartext) 허용 도메인.
+      Wi-Fi/공유기 바뀌면 PC ipconfig IPv4 와 lib/core/server_config.dart 의
+      devPcLanIp 를 같이 수정한다. debug 빌드는 debug/res/xml 설정이 우선한다.
+    -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
+        <!-- server_config.dart → devPcLanIp 와 동일하게 유지 -->
+        <domain includeSubdomains="true">172.16.97.117</domain>
     </domain-config>
 </network-security-config>

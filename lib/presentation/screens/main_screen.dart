@@ -7,6 +7,7 @@ import 'package:momo_app/data/meeting_store.dart';
 import 'package:momo_app/domain/taxi_pod_meeting.dart';
 import 'package:momo_app/presentation/screens/create_taxi_pod_screen.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
+import 'package:momo_app/presentation/screens/meeting_list_screen.dart';
 import 'package:momo_app/presentation/widgets/create_meeting_sheet.dart';
 
 // 로그인 후 홈 — 장면 A(메인 지도).
@@ -152,6 +153,12 @@ class _MainScreenState extends State<MainScreen> {
     _refreshMarkers();
   }
 
+  void _openMeetingList() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => MeetingListScreen()),
+    );
+  }
+
   // ===== [DEBUG] 임시 로그아웃 — 테스트용, 나중에 이 메서드와 Drawer 항목을 삭제하세요 =====
   Future<void> _onLogout() async {
     await SessionStore().clear();
@@ -178,6 +185,17 @@ class _MainScreenState extends State<MainScreen> {
                 child: Text('메뉴', style: MomoTextStyles.heading),
               ),
               const Divider(),
+              ListTile(
+                leading: const Icon(Icons.forum_outlined, color: MomoColors.textSub),
+                title: Text(
+                  '모임 목록',
+                  style: MomoTextStyles.body.copyWith(color: MomoColors.textSub),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _openMeetingList();
+                },
+              ),
               // ===== [DEBUG] 임시 로그아웃 — 테스트용, 나중에 삭제하세요 =====
               ListTile(
                 leading: const Icon(Icons.logout, color: MomoColors.textSub),
@@ -226,7 +244,7 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                       const Spacer(),
                       _MapAddButton(onPressed: _onAddPressed),
-                    ],  
+                    ],
                   ),
                 ),
                 SizedBox(
@@ -257,7 +275,7 @@ class _MainScreenState extends State<MainScreen> {
             right: 0,
             bottom: MomoSpacing.lg,
             child: Center(
-              child: _PeachFab(onPressed: () {}),
+              child: _PeachFab(onPressed: _openMeetingList),
             ),
           ),
         ],

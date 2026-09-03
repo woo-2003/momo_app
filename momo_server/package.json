@@ -7,7 +7,10 @@
         "db:view": "node scripts/db-view.js",
         "db:export": "node scripts/db-view.js --export",
         "db:migrate": "node scripts/migrate-sqlite-to-firestore.js",
-        "smoke:store": "node scripts/smoke-user-store.js"
+        "smoke:store": "node scripts/smoke-user-store.js",
+        "smoke:meetings": "node scripts/smoke-meetings.js",
+        "smoke:socket": "node scripts/smoke-socket.js",
+        "deploy:indexes": "node scripts/deploy-firestore-indexes.js"
     },
     "dependencies": {
         "bcryptjs": "^3.0.3",
@@ -17,6 +20,11 @@
         "express": "^4.21.2",
         "firebase-admin": "^13.4.0",
         "jsonwebtoken": "^9.0.3",
+        "socket.io": "^4.8.1",
         "nodemailer": "^6.10.1"
+    },
+    "devDependencies": {
+        "firebase-tools": "^14.0.0",
+        "socket.io-client": "^4.8.1"
     }
 }

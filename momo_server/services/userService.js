@@ -17,6 +17,13 @@ async function findByEmail(email) {
   return store.findByEmail(email);
 }
 
+async function findById(userId) {
+  if (typeof store.findById !== "function") {
+    return undefined;
+  }
+  return store.findById(userId);
+}
+
 async function isNicknameTaken(nickname) {
   return store.isNicknameTaken(nickname);
 }
@@ -31,6 +38,7 @@ async function listUsersForExport() {
 
 module.exports = {
   findByEmail,
+  findById,
   isNicknameTaken,
   createUser,
   listUsersForExport,

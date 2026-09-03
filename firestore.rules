@@ -1,0 +1,10 @@
+rules_version = '2';
+
+// 클라이언트 직접 접근 금지. momo_server Admin SDK만 사용한다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

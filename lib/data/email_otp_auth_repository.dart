@@ -24,6 +24,7 @@ class EmailOtpAuthRepository implements AuthRepository {
       );
       return AuthSession(
         userId: result.email,
+        accountId: result.accountId,
         nickname: result.nickname,
         accessToken: result.token,
         accessTokenExpiresAt: DateTime.now().toUtc().add(
@@ -32,6 +33,12 @@ class EmailOtpAuthRepository implements AuthRepository {
       );
     } on ApiException catch (e) {
       throw _mapLoginException(e);
+    } catch (e) {
+      throw AuthException(
+        code: 'network',
+        message: '네트워크 오류입니다. 연결을 확인해 주세요.',
+        cause: e,
+      );
     }
   }
 
@@ -230,6 +237,13 @@ class EmailOtpAuthRepository implements AuthRepository {
           code: 'email-already-used',
           message: '이미 인증이 완료된 이메일입니다.',
         );
+      case EmailOtpErrorType.emailAlreadyUsed:
+        return AuthException(
+          code: 'email-already-used',
+          message: result.message.isNotEmpty
+              ? result.message
+              : '이미 가입된 이메일입니다.',
+        );
       case EmailOtpErrorType.network:
         return AuthException(code: 'network', message: result.message);
       case EmailOtpErrorType.server:
@@ -269,6 +283,13 @@ class EmailOtpAuthRepository implements AuthRepository {
         return const AuthException(
           code: 'email-already-used',
           message: '이미 인증이 완료된 이메일입니다.',
+        );
+      case EmailOtpErrorType.emailAlreadyUsed:
+        return AuthException(
+          code: 'email-already-used',
+          message: result.message.isNotEmpty
+              ? result.message
+              : '이미 가입된 이메일입니다.',
         );
       case EmailOtpErrorType.tooManyRequests:
         return const AuthException(
