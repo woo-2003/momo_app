@@ -32,7 +32,10 @@ class ServerConfig {
 
   /// true 면 항상 에뮬레이터 URL(10.0.2.2).
   /// false 여도 에뮬레이터는 자동 감지되어 10.0.2.2 를 쓴다.
-  static const bool useAndroidEmulator = false;
+  // 우영: 에뮬인데 emulator=false 로 나와 172.16.98.27 로 붙어 장소검색 실패 → 에뮬 테스트용 true 로 둠.
+  // 우영: 실폰 테스트 시 아래 true 를 주석하고 false 줄을 살리기.
+  // static const bool useAndroidEmulator = false;
+  static const bool useAndroidEmulator = true;
   // ───────────────────────────────────────────────────────────────────
 
   /// `--dart-define=API_BASE_URL=http://...` 로 실행 시 최우선 적용

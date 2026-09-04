@@ -10,6 +10,7 @@
         "smoke:store": "node scripts/smoke-user-store.js",
         "smoke:meetings": "node scripts/smoke-meetings.js",
         "smoke:socket": "node scripts/smoke-socket.js",
+        "smoke:places": "node scripts/smoke-places.js",
         "deploy:indexes": "node scripts/deploy-firestore-indexes.js"
     },
     "dependencies": {
