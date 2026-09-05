@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:momo_app/core/map_location_helper.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/domain/selected_place.dart';
+import 'package:momo_app/presentation/widgets/map_icon_button.dart';
+import 'package:momo_app/presentation/widgets/map_my_location_button.dart';
 import 'package:momo_app/service/place_service.dart';
 
 /// 지도 pan + 가운데 고정 핀으로 장소 선택.
@@ -49,6 +52,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   late final TextEditingController _searchController;
   late final PlaceService _placeService;
   GoogleMapController? _mapController;
+  bool _myLocationEnabled = false;
 
   Timer? _reverseTimer;
   int _reverseRequestId = 0;
@@ -241,7 +245,38 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     });
   }
 
+  Future<void> _onMyLocationPressed() async {
+    _dismissSearchPanel();
+
+    final granted = await MapLocationHelper.ensurePermission();
+    if (!mounted) return;
+
+    if (!granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('위치 권한을 허용해 주세요.')),
+      );
+      return;
+    }
+
+    if (!_myLocationEnabled) {
+      setState(() => _myLocationEnabled = true);
+    }
+
+    // programmaticMove를 쓰지 않음 → idle 후 reverse로 하단 주소 갱신.
+    final moved = await MapLocationHelper.moveCameraToCurrent(
+      _mapController,
+      zoom: _defaultZoom,
+    );
+    if (!mounted || moved) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('현재 위치를 가져오지 못했어요.')),
+    );
+  }
+
   void _confirm() {
+    if (_reverseLoading) return;
+
     final label = _labelController.text.trim();
     if (label.isEmpty) return;
 
@@ -292,7 +327,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             onCameraIdle: _onCameraIdle,
             // 지도 빈 곳 탭 → 검색 결과만 닫기 (pan/줌은 지도가 처리).
             onTap: (_) => _dismissSearchPanel(),
-            myLocationEnabled: true,
+            myLocationEnabled: _myLocationEnabled,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
@@ -315,7 +350,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 children: [
                   Row(
                     children: [
-                      _MapIconButton(
+                      MapIconButton(
                         icon: Icons.arrow_back_rounded,
                         onPressed: () => Navigator.of(context).pop(),
                       ),
@@ -444,13 +479,21 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     // ),
                     const SizedBox(height: MomoSpacing.md),
                     ElevatedButton(
-                      onPressed: _confirm,
+                      // 주소 reverse 중에는 확정 불가 (잘못된 좌표·라벨 확정 방지).
+                      // onPressed: _confirm,
+                      onPressed: _reverseLoading ? null : _confirm,
                       child: Text(widget.confirmButtonLabel),
                     ),
                   ],
                 ),
               ),
             ),
+          ),
+          // 하단 시트 바로 위 오른쪽 (시트보다 위에 그려 탭 가능).
+          Positioned(
+            right: MomoSpacing.sm,
+            bottom: MediaQuery.paddingOf(context).bottom + 188,
+            child: MapMyLocationButton(onPressed: _onMyLocationPressed),
           ),
         ],
       ),
@@ -507,32 +550,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           onTap: () => _onSearchItemTap(item),
         );
       },
-    );
-  }
-}
-
-class _MapIconButton extends StatelessWidget {
-  const _MapIconButton({required this.icon, required this.onPressed});
-
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: MomoColors.surface,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 2,
-      shadowColor: MomoColors.textMain.withValues(alpha: 0.12),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon, color: MomoColors.primary, size: 24),
-        ),
-      ),
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:momo_app/core/map_location_helper.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/session_store.dart';
 import 'package:momo_app/data/meeting_store.dart';
@@ -9,6 +9,8 @@ import 'package:momo_app/presentation/screens/create_taxi_pod_screen.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
 import 'package:momo_app/presentation/screens/meeting_list_screen.dart';
 import 'package:momo_app/presentation/widgets/create_meeting_sheet.dart';
+import 'package:momo_app/presentation/widgets/map_icon_button.dart';
+import 'package:momo_app/presentation/widgets/map_my_location_button.dart';
 
 // 로그인 후 홈 — 장면 A(메인 지도).
 class MainScreen extends StatefulWidget {
@@ -51,54 +53,40 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _initMyLocation() async {
-    final granted = await _ensureLocationPermission();
+    final granted = await MapLocationHelper.ensurePermission();
     if (!granted || !mounted) return;
 
     setState(() => _myLocationEnabled = true);
-    await _moveCameraToCurrentPosition();
+    await MapLocationHelper.moveCameraToCurrent(_mapController);
   }
 
-  Future<bool> _ensureLocationPermission() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      return false;
-    }
+  Future<void> _onMyLocationPressed() async {
+    final granted = await MapLocationHelper.ensurePermission();
+    if (!mounted) return;
 
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    return permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse;
-  }
-
-  Future<void> _moveCameraToCurrentPosition() async {
-    final controller = _mapController;
-    if (controller == null) return;
-
-    try {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
+    if (!granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('위치 권한을 허용해 주세요.')),
       );
-      await controller.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(position.latitude, position.longitude),
-            zoom: 16,
-          ),
-        ),
-      );
-    } catch (_) {
-      // 권한·GPS 미설정 시 초기 카메라(서울 시청) 유지.
+      return;
     }
+
+    if (!_myLocationEnabled) {
+      setState(() => _myLocationEnabled = true);
+    }
+
+    final moved = await MapLocationHelper.moveCameraToCurrent(_mapController);
+    if (!mounted || moved) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('현재 위치를 가져오지 못했어요.')),
+    );
   }
 
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
     if (_myLocationEnabled) {
-      _moveCameraToCurrentPosition();
+      MapLocationHelper.moveCameraToCurrent(_mapController);
     }
   }
 
@@ -237,7 +225,7 @@ class _MainScreenState extends State<MainScreen> {
                   child: Row(
                     children: [
                       Builder(
-                        builder: (context) => _MapIconButton(
+                        builder: (context) => MapIconButton(
                           icon: Icons.menu_rounded,
                           onPressed: () => Scaffold.of(context).openDrawer(),
                         ),
@@ -270,6 +258,12 @@ class _MainScreenState extends State<MainScreen> {
               ],
             ),
           ),
+          // 복숭아 FAB(72) 위 — 내 위치 버튼과 겹치지 않게.
+          Positioned(
+            right: MomoSpacing.sm,
+            bottom: MomoSpacing.lg + 72 + MomoSpacing.sm,
+            child: MapMyLocationButton(onPressed: _onMyLocationPressed),
+          ),
           Positioned(
             left: 0,
             right: 0,
@@ -279,32 +273,6 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MapIconButton extends StatelessWidget {
-  const _MapIconButton({required this.icon, required this.onPressed});
-
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: MomoColors.surface,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 2,
-      shadowColor: MomoColors.textMain.withValues(alpha: 0.12),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon, color: MomoColors.primary, size: 24),
-        ),
       ),
     );
   }
