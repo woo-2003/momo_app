@@ -78,6 +78,7 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
   Future<void> _pickPlace({
     required String screenTitle,
     required String confirmPrompt,
+    required String confirmButtonLabel,
     required void Function(SelectedPlace place) onSelected,
     SelectedPlace? current,
   }) async {
@@ -86,6 +87,7 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
         builder: (_) => LocationPickerScreen(
           screenTitle: screenTitle,
           confirmPrompt: confirmPrompt,
+          confirmButtonLabel: confirmButtonLabel,
           initialPosition: current?.latLng,
           initialLabel: current?.label,
         ),
@@ -99,6 +101,7 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
   Future<void> _pickDeparture() => _pickPlace(
         screenTitle: '출발지 설정',
         confirmPrompt: '출발지로 설정하시겠습니까?',
+        confirmButtonLabel: '출발지로 설정',
         current: _departure,
         onSelected: (place) {
           _departure = place;
@@ -109,6 +112,7 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
   Future<void> _pickDestination() => _pickPlace(
         screenTitle: '목적지 설정',
         confirmPrompt: '목적지로 설정하시겠습니까?',
+        confirmButtonLabel: '목적지로 설정',
         current: _destination,
         onSelected: (place) {
           _destination = place;
@@ -119,6 +123,7 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
   Future<void> _pickPreMeeting() => _pickPlace(
         screenTitle: '사전 집결 장소 설정',
         confirmPrompt: '사전 집결 장소로 설정하시겠습니까?',
+        confirmButtonLabel: '집결 장소로 설정',
         current: _preMeeting,
         onSelected: (place) {
           _preMeeting = place;
