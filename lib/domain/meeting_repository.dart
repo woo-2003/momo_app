@@ -138,6 +138,10 @@ abstract class MeetingRepository {
 
   Future<void> cancelMeeting(String meetingId);
 
+  Future<void> expireMeeting(String meetingId);
+
+  Future<void> finishMeeting(String meetingId);
+
   Future<void> joinMeeting(String meetingId);
 
   Future<void> leaveMeeting(String meetingId);
@@ -168,5 +172,38 @@ String meetingCategoryLabel(MeetingCategory category) {
       return '운동';
     case MeetingCategory.game:
       return '게임';
+  }
+}
+
+String? meetingCategoryFieldText(Map<String, dynamic> fields, String key) {
+  final value = fields[key];
+  if (value == null) return null;
+  final text = value.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
+/// 상세 화면에 보여줄 카테고리 전용 줄 (게임 이름, 도착지, 종목).
+List<String> meetingCategoryDetailLines(MeetingDetail detail) {
+  final fields = detail.categoryFields;
+  switch (detail.category) {
+    case MeetingCategory.game:
+      final gameName = meetingCategoryFieldText(fields, 'gameName');
+      final platform = meetingCategoryFieldText(fields, 'platformNote');
+      return [
+        if (gameName != null) '게임: $gameName',
+        if (platform != null) '플랫폼: $platform',
+      ];
+    case MeetingCategory.taxi:
+      final destination = meetingCategoryFieldText(fields, 'destinationName');
+      final depart = meetingCategoryFieldText(fields, 'departPlaceName');
+      return [
+        if (destination != null) '도착지: $destination',
+        if (depart != null) '탑승: $depart',
+      ];
+    case MeetingCategory.sports:
+      final sportType = meetingCategoryFieldText(fields, 'sportType');
+      return [
+        if (sportType != null) '종목: $sportType',
+      ];
   }
 }

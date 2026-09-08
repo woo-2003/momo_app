@@ -43,7 +43,7 @@ GPS 유저 좌표 프로토콜은 아직 없다. 멤버 문서에 좌표 자리�
 
 ### Firestore 복합 인덱스 (`GET /meetings`)
 
-모임 목록 쿼리(`status=open` + `startAt` 정렬, 선택 필터 `category`/`meetingMode`)에 필요한 인덱스는 저장소 루트 `firestore.indexes.json`에 정의되어 있다.
+모임 목록 쿼리(`status in [open, full]` + `startAt` 정렬, 선택 필터 `category`/`meetingMode`)에 필요한 인덱스는 저장소 루트 `firestore.indexes.json`에 정의되어 있다.
 
 **1회 배포 (Firebase CLI):**
 
@@ -88,9 +88,11 @@ npm run smoke:location   # GPS 위치 API 스모크 (서버 실행 중)
 ## 모임 API (`Authorization: Bearer <JWT>`)
 
 - `POST /meetings` — 생성
-- `GET /meetings` — open 목록 (쿼리: `category`, `meetingMode`)
+- `GET /meetings` — 목록 (`open`, `full`)
 - `GET /meetings/:id` — 상세
-- `POST /meetings/:id/cancel` — 주최자 파기
+- `POST /meetings/:id/cancel` — 주최자 파기 (`cancelled`)
+- `POST /meetings/:id/expire` — 주최자 폭파 (`expired`)
+- `POST /meetings/:id/finish` — 주최자 종료 (`finished`)
 - `POST /meetings/:id/join` — 참여
 - `POST /meetings/:id/leave` — 나가기
 - `GET /meetings/:id/messages` — 채팅 조회 (멤버만)

@@ -5,7 +5,7 @@
  * 멤버 문서에 lastLatitude/lastLongitude 자리만 둔다.
  *
  * meetings/{meetingId}
- *   type, meetingId, chatRoomId, title, category, ...
+ *   status: open | full | expired | finished | cancelled
  *   memberIds[], members[]          — 식별·참여 인원 (모임 문서에 표시)
  *   latitude/longitude              — 만남 장소. 유저 GPS 아님
  * meetings/{meetingId}/members/{userId}
@@ -26,7 +26,10 @@ const MESSAGES = "messages";
 
 const CATEGORIES = new Set(["taxi", "sports", "game"]);
 const MEETING_MODES = new Set(["offline", "online"]);
-const STATUSES = new Set(["open", "cancelled"]);
+const STATUSES = new Set(["open", "full", "expired", "finished", "cancelled"]);
+const LISTED_STATUSES = ["open", "full"];
+const ALIVE_STATUSES = new Set(["open", "full"]);
+const TERMINAL_STATUSES = new Set(["expired", "finished", "cancelled"]);
 
 const TITLE_MIN = 1;
 const TITLE_MAX = 40;
@@ -50,6 +53,26 @@ class MeetingError extends Error {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function occupancyStatus(currentMembers, maxMembers) {
+  return currentMembers >= maxMembers ? "full" : "open";
+}
+
+function assertJoinable(status) {
+  if (status === "full") {
+    throw new MeetingError(409, "meeting-full");
+  }
+  if (TERMINAL_STATUSES.has(status) || status !== "open") {
+    throw new MeetingError(409, "meeting-ended");
+  }
+}
+
+function chatRejectCode(status) {
+  if (status === "cancelled") return "meeting-cancelled";
+  if (status === "expired") return "meeting-expired";
+  if (status === "finished") return "meeting-finished";
+  return "meeting-ended";
 }
 
 function parseIso(value, fieldName) {
@@ -403,7 +426,7 @@ async function listMeetings(filters = {}) {
 
   let query = getFirestore()
     .collection(MEETINGS)
-    .where("status", "==", "open");
+    .where("status", "in", LISTED_STATUSES);
 
   if (category) {
     if (!CATEGORIES.has(category)) {
@@ -442,30 +465,46 @@ async function getMeetingDetail(meetingId, userId) {
   };
 }
 
-async function cancelMeeting(meetingId, userId) {
+async function endMeeting(meetingId, userId, nextStatus, atField) {
   const { ref, data } = await getMeetingOrThrow(meetingId);
 
   if (data.creatorId !== userId) {
     throw new MeetingError(403, "forbidden");
   }
 
-  if (data.status === "cancelled") {
+  if (TERMINAL_STATUSES.has(data.status)) {
     throw new MeetingError(409, "meeting-ended");
   }
 
-  const cancelledAt = nowIso();
+  if (!ALIVE_STATUSES.has(data.status)) {
+    throw new MeetingError(409, "meeting-ended");
+  }
+
+  const endedAt = nowIso();
   await ref.update({
-    status: "cancelled",
-    cancelledAt,
+    status: nextStatus,
+    [atField]: endedAt,
   });
 
   if (isNonEmptyString(data.chatRoomId)) {
     await getChatRoomRef(data.chatRoomId).update({
-      status: "cancelled",
+      status: nextStatus,
     });
   }
 
-  return { status: "cancelled", cancelledAt };
+  return { status: nextStatus, [atField]: endedAt };
+}
+
+async function cancelMeeting(meetingId, userId) {
+  return endMeeting(meetingId, userId, "cancelled", "cancelledAt");
+}
+
+async function expireMeeting(meetingId, userId) {
+  return endMeeting(meetingId, userId, "expired", "expiredAt");
+}
+
+async function finishMeeting(meetingId, userId) {
+  return endMeeting(meetingId, userId, "finished", "finishedAt");
 }
 
 async function joinMeeting(meetingId, userId) {
@@ -476,9 +515,7 @@ async function joinMeeting(meetingId, userId) {
 
   const { ref, data } = await getMeetingOrThrow(meetingId);
 
-  if (data.status !== "open") {
-    throw new MeetingError(409, "meeting-ended");
-  }
+  assertJoinable(data.status);
 
   const memberRef = ref.collection(MEMBERS).doc(userId);
   const memberSnap = await memberRef.get();
@@ -500,9 +537,7 @@ async function joinMeeting(meetingId, userId) {
     }
 
     const meeting = meetingSnap.data();
-    if (meeting.status !== "open") {
-      throw new MeetingError(409, "meeting-ended");
-    }
+    assertJoinable(meeting.status);
 
     const existingMember = await tx.get(memberRef);
     if (existingMember.exists) {
@@ -520,8 +555,10 @@ async function joinMeeting(meetingId, userId) {
       role: "member",
       joinedAt,
     }));
+    const nextCount = meeting.currentMembers + 1;
     tx.update(ref, {
-      currentMembers: meeting.currentMembers + 1,
+      currentMembers: nextCount,
+      status: occupancyStatus(nextCount, meeting.maxMembers),
       memberIds: [...(meeting.memberIds || []), userId],
       members: [
         ...(meeting.members || []),
@@ -560,14 +597,19 @@ async function leaveMeeting(meetingId, userId) {
     }
 
     const meeting = meetingSnap.data();
-    tx.delete(memberRef);
-    tx.update(ref, {
-      currentMembers: Math.max(0, meeting.currentMembers - 1),
+    const nextCount = Math.max(0, meeting.currentMembers - 1);
+    const patch = {
+      currentMembers: nextCount,
       memberIds: (meeting.memberIds || []).filter((id) => id !== userId),
       members: (meeting.members || []).filter(
         (member) => member.userId !== userId
       ),
-    });
+    };
+    if (meeting.status === "full" && nextCount < meeting.maxMembers) {
+      patch.status = "open";
+    }
+    tx.delete(memberRef);
+    tx.update(ref, patch);
   });
 
   return { left: true };
@@ -662,8 +704,8 @@ async function createMessage(meetingId, userId, body) {
     throw new MeetingError(403, "not-participant");
   }
 
-  if (data.status !== "open") {
-    throw new MeetingError(403, "meeting-cancelled");
+  if (!ALIVE_STATUSES.has(data.status)) {
+    throw new MeetingError(403, chatRejectCode(data.status));
   }
 
   if (typeof body !== "string") {
@@ -704,6 +746,8 @@ module.exports = {
   listMeetings,
   getMeetingDetail,
   cancelMeeting,
+  expireMeeting,
+  finishMeeting,
   joinMeeting,
   leaveMeeting,
   getMessages,

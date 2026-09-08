@@ -25,7 +25,7 @@ class ServerConfig {
 
   // ── 네트워크 바뀔 때 여기 수정 ──────────────────────────────────────
   /// PC의 IPv4 주소 (`ipconfig` → 무선/이더넷 LAN 어댑터 IPv4)
-  static const String devPcLanIp = '172.16.98.27'; //변경ip
+  static const String devPcLanIp = '172.16.110.193'; //변경ip
 
   /// momo_server 포트 (server.js 기본값과 동일하게 유지)
   static const int devServerPort = 3000;

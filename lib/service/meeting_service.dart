@@ -80,6 +80,28 @@ class MeetingService {
     );
   }
 
+  Future<void> expireMeeting({
+    required String token,
+    required String meetingId,
+  }) async {
+    await _authorizedJson(
+      token: token,
+      method: 'POST',
+      path: '/meetings/$meetingId/expire',
+    );
+  }
+
+  Future<void> finishMeeting({
+    required String token,
+    required String meetingId,
+  }) async {
+    await _authorizedJson(
+      token: token,
+      method: 'POST',
+      path: '/meetings/$meetingId/finish',
+    );
+  }
+
   Future<void> joinMeeting({
     required String token,
     required String meetingId,
@@ -244,7 +266,7 @@ class MeetingService {
               .toList()
         : <MeetingMember>[];
 
-    final categoryFields = json['categoryFields'];
+    final categoryFields = _asStringMap(json['categoryFields']);
     return MeetingDetail(
       meetingId: json['meetingId']?.toString() ?? '',
       category: _parseCategory(json['category']?.toString()),
@@ -258,9 +280,7 @@ class MeetingService {
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       description: json['description']?.toString() ?? '',
-      categoryFields: categoryFields is Map<String, dynamic>
-          ? categoryFields
-          : const {},
+      categoryFields: categoryFields,
       creatorId: json['creatorId']?.toString() ?? '',
       isHost: json['isHost'] == true,
       isMember: json['isMember'] == true,
@@ -276,6 +296,14 @@ class MeetingService {
       body: json['body']?.toString() ?? '',
       createdAt: DateTime.parse(json['createdAt']?.toString() ?? ''),
     );
+  }
+
+  Map<String, dynamic> _asStringMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    return <String, dynamic>{};
   }
 
   Map<String, dynamic> _decodeResponse(String body) {

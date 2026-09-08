@@ -9,6 +9,8 @@ const {
   listMeetings,
   getMeetingDetail,
   cancelMeeting,
+  expireMeeting,
+  finishMeeting,
   joinMeeting,
   leaveMeeting,
   getMessages,
@@ -51,7 +53,7 @@ router.post("/meetings", async (req, res) => {
   }
 });
 
-// GET /meetings — 목록 (open만)
+// GET /meetings — 목록 (open, full)
 router.get("/meetings", async (req, res) => {
   try {
     const items = await listMeetings({
@@ -82,6 +84,34 @@ router.post("/meetings/:id/cancel", async (req, res) => {
       success: true,
       status: result.status,
       cancelledAt: result.cancelledAt,
+    });
+  } catch (e) {
+    return handleMeetingError(res, e);
+  }
+});
+
+// POST /meetings/:id/expire — 생명주기 폭파
+router.post("/meetings/:id/expire", async (req, res) => {
+  try {
+    const result = await expireMeeting(req.params.id, req.user.id);
+    return res.status(200).json({
+      success: true,
+      status: result.status,
+      expiredAt: result.expiredAt,
+    });
+  } catch (e) {
+    return handleMeetingError(res, e);
+  }
+});
+
+// POST /meetings/:id/finish — 모임 종료
+router.post("/meetings/:id/finish", async (req, res) => {
+  try {
+    const result = await finishMeeting(req.params.id, req.user.id);
+    return res.status(200).json({
+      success: true,
+      status: result.status,
+      finishedAt: result.finishedAt,
     });
   } catch (e) {
     return handleMeetingError(res, e);

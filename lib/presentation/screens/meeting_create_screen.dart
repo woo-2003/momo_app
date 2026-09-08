@@ -13,22 +13,44 @@ class MeetingCreateScreen extends StatefulWidget {
 
 class _MeetingCreateScreenState extends State<MeetingCreateScreen> {
   final _titleController = TextEditingController();
-  final _gameNameController = TextEditingController(text: 'lol');
-  final _destinationController = TextEditingController(text: '안양역');
-  final _placeNameController = TextEditingController(text: '성결대 정문');
+  final _gameNameController = TextEditingController();
+  final _destinationController = TextEditingController();
+  final _placeNameController = TextEditingController();
+  final _sportTypeController = TextEditingController();
 
   MeetingCategory _category = MeetingCategory.game;
   int _maxMembers = 4;
   bool _isSubmitting = false;
 
+  bool get _hasCategoryFields {
+    switch (_category) {
+      case MeetingCategory.game:
+        return _gameNameController.text.trim().isNotEmpty;
+      case MeetingCategory.taxi:
+        return _placeNameController.text.trim().isNotEmpty &&
+            _destinationController.text.trim().isNotEmpty;
+      case MeetingCategory.sports:
+        return _placeNameController.text.trim().isNotEmpty &&
+            _sportTypeController.text.trim().isNotEmpty;
+    }
+  }
+
   bool get _canSubmit =>
-      _titleController.text.trim().isNotEmpty && !_isSubmitting;
+      _titleController.text.trim().isNotEmpty &&
+      _hasCategoryFields &&
+      !_isSubmitting;
 
   @override
   void initState() {
     super.initState();
-    _titleController.addListener(() => setState(() {}));
+    _titleController.addListener(_onFormChanged);
+    _gameNameController.addListener(_onFormChanged);
+    _destinationController.addListener(_onFormChanged);
+    _placeNameController.addListener(_onFormChanged);
+    _sportTypeController.addListener(_onFormChanged);
   }
+
+  void _onFormChanged() => setState(() {});
 
   Future<void> _onSubmit() async {
     if (!_canSubmit) return;
@@ -62,9 +84,7 @@ class _MeetingCreateScreenState extends State<MeetingCreateScreen> {
           startAt: startAt,
           maxMembers: _maxMembers,
           categoryFields: {
-            'gameName': _gameNameController.text.trim().isEmpty
-                ? 'other'
-                : _gameNameController.text.trim(),
+            'gameName': _gameNameController.text.trim(),
           },
         );
       case MeetingCategory.taxi:
@@ -91,17 +111,25 @@ class _MeetingCreateScreenState extends State<MeetingCreateScreen> {
           longitude: 126.9281,
           startAt: startAt,
           maxMembers: _maxMembers,
-          categoryFields: const {'sportType': 'running'},
+          categoryFields: {
+            'sportType': _sportTypeController.text.trim(),
+          },
         );
     }
   }
 
   @override
   void dispose() {
+    _titleController.removeListener(_onFormChanged);
+    _gameNameController.removeListener(_onFormChanged);
+    _destinationController.removeListener(_onFormChanged);
+    _placeNameController.removeListener(_onFormChanged);
+    _sportTypeController.removeListener(_onFormChanged);
     _titleController.dispose();
     _gameNameController.dispose();
     _destinationController.dispose();
     _placeNameController.dispose();
+    _sportTypeController.dispose();
     super.dispose();
   }
 
@@ -148,7 +176,7 @@ class _MeetingCreateScreenState extends State<MeetingCreateScreen> {
                 TextField(
                   controller: _gameNameController,
                   enabled: !_isSubmitting,
-                  decoration: const InputDecoration(hintText: '게임 이름 (예: lol)'),
+                  decoration: const InputDecoration(hintText: '게임 이름'),
                 ),
               if (_category == MeetingCategory.taxi) ...[
                 TextField(
@@ -163,12 +191,19 @@ class _MeetingCreateScreenState extends State<MeetingCreateScreen> {
                   decoration: const InputDecoration(hintText: '도착지'),
                 ),
               ],
-              if (_category == MeetingCategory.sports)
+              if (_category == MeetingCategory.sports) ...[
+                TextField(
+                  controller: _sportTypeController,
+                  enabled: !_isSubmitting,
+                  decoration: const InputDecoration(hintText: '종목 (예: 러닝, 축구)'),
+                ),
+                const SizedBox(height: MomoSpacing.sm),
                 TextField(
                   controller: _placeNameController,
                   enabled: !_isSubmitting,
                   decoration: const InputDecoration(hintText: '운동 장소'),
                 ),
+              ],
               const SizedBox(height: MomoSpacing.sm),
               Row(
                 children: [

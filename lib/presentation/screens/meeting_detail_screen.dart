@@ -36,7 +36,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         (detail) {
           if (detail.isMember &&
               detail.latitude != null &&
-              detail.longitude != null) {
+              detail.longitude != null &&
+              (detail.status == 'open' || detail.status == 'full')) {
             unawaited(
               MeetingLocationShareService.instance.startSharing(
                 widget.meetingId,
@@ -132,8 +133,14 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     style: MomoTextStyles.body,
                   ),
                 ],
+                ...meetingCategoryDetailLines(detail).map(
+                  (line) => Padding(
+                    padding: const EdgeInsets.only(top: MomoSpacing.xs),
+                    child: Text(line, style: MomoTextStyles.body),
+                  ),
+                ),
                 const SizedBox(height: MomoSpacing.md),
-                if (!detail.isMember)
+                if (!detail.isMember && detail.status == 'open')
                   ElevatedButton(
                     onPressed: _isWorking
                         ? null
@@ -143,6 +150,13 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                             ),
                           ),
                     child: const Text('참여하기'),
+                  ),
+                if (!detail.isMember && detail.status == 'full')
+                  Text(
+                    '정원이 가득 찼습니다.',
+                    style: MomoTextStyles.caption.copyWith(
+                      color: MomoColors.textSub,
+                    ),
                   ),
                 if (detail.isMember && !detail.isHost)
                   OutlinedButton(
@@ -155,7 +169,30 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                           ),
                     child: const Text('나가기'),
                   ),
-                if (detail.isHost)
+                if (detail.isHost &&
+                    (detail.status == 'open' || detail.status == 'full')) ...[
+                  OutlinedButton(
+                    onPressed: _isWorking
+                        ? null
+                        : () => _runAction(
+                            () => widget.meetingRepository.finishMeeting(
+                              widget.meetingId,
+                            ),
+                          ),
+                    child: const Text('모임 종료'),
+                  ),
+                  const SizedBox(height: MomoSpacing.xs),
+                  OutlinedButton(
+                    onPressed: _isWorking
+                        ? null
+                        : () => _runAction(
+                            () => widget.meetingRepository.expireMeeting(
+                              widget.meetingId,
+                            ),
+                          ),
+                    child: const Text('폭파'),
+                  ),
+                  const SizedBox(height: MomoSpacing.xs),
                   OutlinedButton(
                     onPressed: _isWorking
                         ? null
@@ -166,6 +203,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                           ),
                     child: const Text('모임 취소'),
                   ),
+                ],
                 if (detail.isMember) ...[
                   const SizedBox(height: MomoSpacing.sm),
                   ElevatedButton(

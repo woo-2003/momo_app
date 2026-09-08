@@ -76,6 +76,24 @@ class MeetingRepositoryImpl implements MeetingRepository {
   }
 
   @override
+  Future<void> expireMeeting(String meetingId) async {
+    await _meetingService.expireMeeting(
+      token: await _token(),
+      meetingId: meetingId,
+    );
+    MeetingLocationShareService.instance.stopSharing(meetingId);
+  }
+
+  @override
+  Future<void> finishMeeting(String meetingId) async {
+    await _meetingService.finishMeeting(
+      token: await _token(),
+      meetingId: meetingId,
+    );
+    MeetingLocationShareService.instance.stopSharing(meetingId);
+  }
+
+  @override
   Future<void> joinMeeting(String meetingId) async {
     await _meetingService.joinMeeting(
       token: await _token(),
