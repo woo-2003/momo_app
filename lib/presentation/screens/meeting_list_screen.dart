@@ -6,6 +6,7 @@ import 'package:momo_app/presentation/screens/meeting_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
+import 'package:momo_app/service/meeting_location_share_service.dart';
 
 class MeetingListScreen extends StatefulWidget {
   MeetingListScreen({super.key, MeetingRepository? meetingRepository})
@@ -33,6 +34,7 @@ class _MeetingListScreenState extends State<MeetingListScreen> {
   }
 
   Future<void> _onLogout() async {
+    MeetingLocationShareService.instance.stopAll();
     await SessionStore().clear();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

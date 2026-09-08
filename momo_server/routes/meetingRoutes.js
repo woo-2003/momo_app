@@ -42,6 +42,7 @@ router.post("/meetings", async (req, res) => {
     return res.status(201).json({
       success: true,
       meetingId: result.meetingId,
+      chatRoomId: result.chatRoomId,
       status: result.status,
       createdAt: result.createdAt,
     });

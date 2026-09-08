@@ -43,7 +43,9 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>모임 참여자와 위치를 공유하고 지도에 표시하기 위해 사용합니다.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>모임 참여자와 위치를 공유하고 지도에 표시하기 위해 사용합니다.</string>
 </dict>
 </plist>

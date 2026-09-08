@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:momo_app/data/session_store.dart';
 import 'package:momo_app/domain/meeting_repository.dart';
 import 'package:momo_app/service/chat_socket_service.dart';
+import 'package:momo_app/service/meeting_location_share_service.dart';
 import 'package:momo_app/service/meeting_service.dart';
 
 class MeetingRepositoryImpl implements MeetingRepository {
@@ -34,7 +37,13 @@ class MeetingRepositoryImpl implements MeetingRepository {
       token: await _token(),
       input: input,
     );
-    return result['meetingId']?.toString() ?? '';
+    final meetingId = result['meetingId']?.toString() ?? '';
+    if (meetingId.isNotEmpty &&
+        input.latitude != null &&
+        input.longitude != null) {
+      unawaited(MeetingLocationShareService.instance.startSharing(meetingId));
+    }
+    return meetingId;
   }
 
   @override
@@ -63,6 +72,7 @@ class MeetingRepositoryImpl implements MeetingRepository {
       token: await _token(),
       meetingId: meetingId,
     );
+    MeetingLocationShareService.instance.stopSharing(meetingId);
   }
 
   @override
@@ -71,6 +81,7 @@ class MeetingRepositoryImpl implements MeetingRepository {
       token: await _token(),
       meetingId: meetingId,
     );
+    unawaited(MeetingLocationShareService.instance.startSharing(meetingId));
   }
 
   @override
@@ -79,6 +90,7 @@ class MeetingRepositoryImpl implements MeetingRepository {
       token: await _token(),
       meetingId: meetingId,
     );
+    MeetingLocationShareService.instance.stopSharing(meetingId);
   }
 
   @override

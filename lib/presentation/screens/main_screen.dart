@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -9,6 +11,8 @@ import 'package:momo_app/presentation/screens/create_taxi_pod_screen.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
 import 'package:momo_app/presentation/screens/meeting_list_screen.dart';
 import 'package:momo_app/presentation/widgets/create_meeting_sheet.dart';
+import 'package:momo_app/service/meeting_location_service.dart';
+import 'package:momo_app/service/meeting_location_share_service.dart';
 
 // 로그인 후 홈 — 장면 A(메인 지도).
 class MainScreen extends StatefulWidget {
@@ -36,18 +40,43 @@ class _MainScreenState extends State<MainScreen> {
   GoogleMapController? _mapController;
   bool _myLocationEnabled = false;
   Set<Marker> _markers = {};
+  List<MeetingMemberGps> _memberGps = const [];
+  StreamSubscription<List<MeetingMemberGps>>? _gpsSubscription;
+  String? _myUserId;
 
   @override
   void initState() {
     super.initState();
     _markers = _buildMarkers();
     _initMyLocation();
+    _listenMemberGps();
   }
 
   @override
   void dispose() {
+    _gpsSubscription?.cancel();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _listenMemberGps() async {
+    final session = await SessionStore().read();
+    if (!mounted) return;
+    _myUserId = session?.accountId;
+    setState(() {
+      _memberGps = MeetingLocationShareService.instance.currentMembers;
+      _markers = _buildMarkers();
+    });
+
+    _gpsSubscription = MeetingLocationShareService.instance.members.listen((
+      items,
+    ) {
+      if (!mounted) return;
+      setState(() {
+        _memberGps = items;
+        _markers = _buildMarkers();
+      });
+    });
   }
 
   Future<void> _initMyLocation() async {
@@ -104,19 +133,37 @@ class _MainScreenState extends State<MainScreen> {
 
   Set<Marker> _buildMarkers() {
     final showTaxi = _selectedFilterIndex == 0 || _selectedFilterIndex == 1;
-    if (!showTaxi) return {};
+    final taxiMarkers = showTaxi
+        ? {
+            for (final meeting in MeetingStore.instance.taxiPods)
+              Marker(
+                markerId: MarkerId('taxi_${meeting.id}'),
+                position: meeting.markerPosition,
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueOrange,
+                ),
+                infoWindow: InfoWindow(title: meeting.title),
+              ),
+          }
+        : <Marker>{};
 
-    return {
-      for (final meeting in MeetingStore.instance.taxiPods)
-        Marker(
-          markerId: MarkerId('taxi_${meeting.id}'),
-          position: meeting.markerPosition,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueOrange,
+    final gpsMarkers = {
+      for (final member in _memberGps)
+        if (member.userId != _myUserId)
+          Marker(
+            markerId: MarkerId('gps_${member.meetingId}_${member.userId}'),
+            position: LatLng(member.latitude, member.longitude),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueAzure,
+            ),
+            infoWindow: InfoWindow(
+              title: member.status,
+              snippet: '${member.distanceToDest}m',
+            ),
           ),
-          infoWindow: InfoWindow(title: meeting.title),
-        ),
     };
+
+    return {...taxiMarkers, ...gpsMarkers};
   }
 
   void _refreshMarkers() {
@@ -161,6 +208,7 @@ class _MainScreenState extends State<MainScreen> {
 
   // ===== [DEBUG] 임시 로그아웃 — 테스트용, 나중에 이 메서드와 Drawer 항목을 삭제하세요 =====
   Future<void> _onLogout() async {
+    MeetingLocationShareService.instance.stopAll();
     await SessionStore().clear();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

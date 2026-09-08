@@ -1,5 +1,5 @@
-// momo_server 진입점. OTP + 인증 HTTP + 모임 API + Socket.IO 채팅.
-// STORAGE=firestore|sqlite. 모임/실시간 채팅은 firestore 전용.
+// momo_server 진입점. OTP + 인증 HTTP + 모임 API + GPS + Socket.IO 채팅.
+// STORAGE=firestore|sqlite. 모임/실시간 채팅/GPS는 firestore 전용.
 require("dotenv").config();
 
 const http = require("http");
@@ -27,6 +27,9 @@ app.use("/", authRoutes);
 if (storage === "firestore") {
   const meetingRoutes = require("./routes/meetingRoutes");
   app.use("/", meetingRoutes);
+
+  const locationRoutes = require("./routes/locationRoutes");
+  app.use("/", locationRoutes);
 } else {
   console.warn(
     "STORAGE=sqlite — 모임 API는 비활성화됩니다. STORAGE=firestore 로 전환하세요."

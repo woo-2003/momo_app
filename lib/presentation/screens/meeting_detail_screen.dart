@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/domain/meeting_repository.dart';
 import 'package:momo_app/presentation/screens/meeting_chat_screen.dart';
+import 'package:momo_app/service/meeting_location_share_service.dart';
 
 class MeetingDetailScreen extends StatefulWidget {
   const MeetingDetailScreen({
@@ -29,7 +32,20 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
   void _reload() {
     setState(() {
-      _detailFuture = widget.meetingRepository.getMeeting(widget.meetingId);
+      _detailFuture = widget.meetingRepository.getMeeting(widget.meetingId).then(
+        (detail) {
+          if (detail.isMember &&
+              detail.latitude != null &&
+              detail.longitude != null) {
+            unawaited(
+              MeetingLocationShareService.instance.startSharing(
+                widget.meetingId,
+              ),
+            );
+          }
+          return detail;
+        },
+      );
     });
   }
 

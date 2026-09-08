@@ -1,11 +1,26 @@
 /**
- * 모임·멤버·메시지 Firestore 서비스.
- * 프로토타입 명세: docs/모임채팅_프로토타입_기술명세서.md
+ * 모임·멤버·채팅 Firestore 서비스.
+ *
+ * 컬렉션을 모임과 채팅으로 분리한다. GPS 실시간 좌표 프로토콜은 아직 없다.
+ * 멤버 문서에 lastLatitude/lastLongitude 자리만 둔다.
+ *
+ * meetings/{meetingId}
+ *   type, meetingId, chatRoomId, title, category, ...
+ *   memberIds[], members[]          — 식별·참여 인원 (모임 문서에 표시)
+ *   latitude/longitude              — 만남 장소. 유저 GPS 아님
+ * meetings/{meetingId}/members/{userId}
+ *   userId, nickname, role, joinedAt
+ *   lastLatitude, lastLongitude, locationUpdatedAt  — GPS용 자리 (지금은 null)
+ * chat_rooms/{chatRoomId}
+ *   type: chat_room, meetingId, status, createdAt
+ * chat_rooms/{chatRoomId}/messages/{messageId}
+ *   type: chat_message, chatRoomId, meetingId, senderId, nickname, body, createdAt
  */
 const { getFirestore } = require("../firebase");
 const { findById } = require("./userService");
 
 const MEETINGS = "meetings";
+const CHAT_ROOMS = "chat_rooms";
 const MEMBERS = "members";
 const MESSAGES = "messages";
 
@@ -227,6 +242,59 @@ function getMeetingRef(meetingId) {
   return getFirestore().collection(MEETINGS).doc(meetingId);
 }
 
+function getChatRoomRef(chatRoomId) {
+  return getFirestore().collection(CHAT_ROOMS).doc(chatRoomId);
+}
+
+function buildMemberRecord({ userId, nickname, role, joinedAt }) {
+  return {
+    userId,
+    nickname,
+    role,
+    joinedAt,
+    lastLatitude: null,
+    lastLongitude: null,
+    locationUpdatedAt: null,
+  };
+}
+
+function toParticipantIdentity(member) {
+  return {
+    userId: member.userId,
+    nickname: member.nickname,
+    role: member.role,
+    joinedAt: member.joinedAt,
+  };
+}
+
+async function ensureChatRoomId(meetingRef) {
+  return getFirestore().runTransaction(async (tx) => {
+    const snap = await tx.get(meetingRef);
+    if (!snap.exists) {
+      throw new MeetingError(404, "not-found");
+    }
+
+    const data = snap.data();
+    if (isNonEmptyString(data.chatRoomId)) {
+      return data.chatRoomId;
+    }
+
+    const chatRoomRef = getFirestore().collection(CHAT_ROOMS).doc();
+    tx.set(chatRoomRef, {
+      type: "chat_room",
+      meetingId: meetingRef.id,
+      status: data.status || "open",
+      createdAt: nowIso(),
+    });
+    tx.update(meetingRef, {
+      type: "meeting",
+      meetingId: meetingRef.id,
+      chatRoomId: chatRoomRef.id,
+    });
+    return chatRoomRef.id;
+  });
+}
+
 async function getMeetingOrThrow(meetingId) {
   const ref = getMeetingRef(meetingId);
   const snap = await ref.get();
@@ -276,8 +344,18 @@ async function createMeeting(userId, body) {
   const input = validateCreateInput(body);
   const createdAt = nowIso();
   const meetingRef = getFirestore().collection(MEETINGS).doc();
+  const chatRoomRef = getFirestore().collection(CHAT_ROOMS).doc();
+  const hostMember = buildMemberRecord({
+    userId,
+    nickname: user.nickname,
+    role: "host",
+    joinedAt: createdAt,
+  });
 
   const meetingData = {
+    type: "meeting",
+    meetingId: meetingRef.id,
+    chatRoomId: chatRoomRef.id,
     title: input.title,
     description: input.description,
     category: input.category,
@@ -291,26 +369,30 @@ async function createMeeting(userId, body) {
     maxMembers: input.maxMembers,
     currentMembers: 1,
     creatorId: userId,
+    memberIds: [userId],
+    members: [toParticipantIdentity(hostMember)],
     categoryFields: input.categoryFields,
     cancelledAt: null,
     createdAt,
   };
 
   const memberRef = meetingRef.collection(MEMBERS).doc(userId);
-  const memberData = {
-    userId,
-    nickname: user.nickname,
-    role: "host",
-    joinedAt: createdAt,
+  const chatRoomData = {
+    type: "chat_room",
+    meetingId: meetingRef.id,
+    status: "open",
+    createdAt,
   };
 
   await getFirestore().runTransaction(async (tx) => {
     tx.set(meetingRef, meetingData);
-    tx.set(memberRef, memberData);
+    tx.set(memberRef, hostMember);
+    tx.set(chatRoomRef, chatRoomData);
   });
 
   return {
     meetingId: meetingRef.id,
+    chatRoomId: chatRoomRef.id,
     status: "open",
     createdAt,
   };
@@ -352,6 +434,8 @@ async function getMeetingDetail(meetingId, userId) {
     description: data.description ?? "",
     categoryFields: data.categoryFields ?? {},
     creatorId: data.creatorId,
+    chatRoomId: data.chatRoomId ?? null,
+    memberIds: Array.isArray(data.memberIds) ? data.memberIds : members.map((m) => m.userId),
     isHost: data.creatorId === userId,
     isMember: Boolean(member),
     members,
@@ -374,6 +458,12 @@ async function cancelMeeting(meetingId, userId) {
     status: "cancelled",
     cancelledAt,
   });
+
+  if (isNonEmptyString(data.chatRoomId)) {
+    await getChatRoomRef(data.chatRoomId).update({
+      status: "cancelled",
+    });
+  }
 
   return { status: "cancelled", cancelledAt };
 }
@@ -424,13 +514,25 @@ async function joinMeeting(meetingId, userId) {
       throw new MeetingError(409, "meeting-full");
     }
 
-    tx.set(memberRef, {
+    tx.set(memberRef, buildMemberRecord({
       userId,
       nickname: user.nickname,
       role: "member",
       joinedAt,
+    }));
+    tx.update(ref, {
+      currentMembers: meeting.currentMembers + 1,
+      memberIds: [...(meeting.memberIds || []), userId],
+      members: [
+        ...(meeting.members || []),
+        toParticipantIdentity({
+          userId,
+          nickname: user.nickname,
+          role: "member",
+          joinedAt,
+        }),
+      ],
     });
-    tx.update(ref, { currentMembers: meeting.currentMembers + 1 });
   });
 
   return { alreadyMember: alreadyMemberInTx };
@@ -461,14 +563,39 @@ async function leaveMeeting(meetingId, userId) {
     tx.delete(memberRef);
     tx.update(ref, {
       currentMembers: Math.max(0, meeting.currentMembers - 1),
+      memberIds: (meeting.memberIds || []).filter((id) => id !== userId),
+      members: (meeting.members || []).filter(
+        (member) => member.userId !== userId
+      ),
     });
   });
 
   return { left: true };
 }
 
+function mapChatMessage(doc) {
+  const message = doc.data();
+  return {
+    messageId: doc.id,
+    senderId: message.senderId,
+    nickname: message.nickname,
+    body: message.body,
+    createdAt: message.createdAt,
+  };
+}
+
+async function queryMessages(collectionRef, options, limit) {
+  let query = collectionRef.orderBy("createdAt", "desc");
+  if (options.before) {
+    const beforeIso = parseIso(options.before, "before");
+    query = query.where("createdAt", "<", beforeIso);
+  }
+  const snap = await query.limit(limit).get();
+  return snap.docs.map(mapChatMessage).reverse();
+}
+
 async function getMessages(meetingId, userId, options = {}) {
-  const { data } = await getMeetingOrThrow(meetingId);
+  const { ref, data } = await getMeetingOrThrow(meetingId);
 
   if (!(await isMember(meetingId, userId))) {
     throw new MeetingError(403, "not-participant");
@@ -483,33 +610,18 @@ async function getMessages(meetingId, userId, options = {}) {
     limit = Math.min(parsed, MSG_MAX_LIMIT);
   }
 
-  let query = getFirestore()
-    .collection(MEETINGS)
-    .doc(meetingId)
-    .collection(MESSAGES)
-    .orderBy("createdAt", "desc");
+  const chatRoomId = await ensureChatRoomId(ref);
+  let items = await queryMessages(
+    getChatRoomRef(chatRoomId).collection(MESSAGES),
+    options,
+    limit
+  );
 
-  if (options.before) {
-    const beforeIso = parseIso(options.before, "before");
-    query = query.where("createdAt", "<", beforeIso);
+  if (items.length === 0 && !options.before) {
+    items = await queryMessages(ref.collection(MESSAGES), options, limit);
   }
 
-  const snap = await query.limit(limit).get();
-
-  const items = snap.docs
-    .map((doc) => {
-      const message = doc.data();
-      return {
-        messageId: doc.id,
-        senderId: message.senderId,
-        nickname: message.nickname,
-        body: message.body,
-        createdAt: message.createdAt,
-      };
-    })
-    .reverse();
-
-  return { items, meetingStatus: data.status };
+  return { items, meetingStatus: data.status, chatRoomId };
 }
 
 async function verifyMeetingMember(meetingId, userId) {
@@ -530,6 +642,7 @@ function toChatPayload(meetingId, result) {
   return {
     messageId: result.messageId,
     meetingId,
+    chatRoomId: result.chatRoomId,
     senderId: result.message.senderId,
     nickname: result.message.nickname,
     body: result.message.body,
@@ -562,9 +675,13 @@ async function createMessage(meetingId, userId, body) {
     throw new MeetingError(400, "validation");
   }
 
+  const chatRoomId = await ensureChatRoomId(ref);
   const createdAt = nowIso();
-  const messageRef = ref.collection(MESSAGES).doc();
+  const messageRef = getChatRoomRef(chatRoomId).collection(MESSAGES).doc();
   const messageData = {
+    type: "chat_message",
+    chatRoomId,
+    meetingId,
     senderId: userId,
     nickname: user.nickname,
     body: trimmedBody,
@@ -575,6 +692,7 @@ async function createMessage(meetingId, userId, body) {
 
   return {
     messageId: messageRef.id,
+    chatRoomId,
     createdAt,
     message: messageData,
   };
@@ -596,4 +714,8 @@ module.exports = {
   CATEGORIES,
   MEETING_MODES,
   STATUSES,
+  MEETINGS,
+  CHAT_ROOMS,
+  MEMBERS,
+  MESSAGES,
 };
