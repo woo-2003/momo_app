@@ -68,7 +68,7 @@ class _LoginFormScreenState extends State<LoginFormScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+        MaterialPageRoute<void>(builder: (_) => MainScreen()),
         (route) => false,
       );
     } on AuthException catch (e) {

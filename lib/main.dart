@@ -89,7 +89,7 @@ class _AppEntryState extends State<_AppEntry> {
         }
         // ===== [DEBUG] 끝 =====
 
-        return loggedIn ? const MainScreen() : const LoginScreen();
+        return loggedIn ? MainScreen() : const LoginScreen();
       },
     );
   }

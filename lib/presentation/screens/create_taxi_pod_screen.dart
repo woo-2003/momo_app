@@ -1,15 +1,25 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/theme.dart';
-import 'package:momo_app/data/meeting_store.dart';
+import 'package:momo_app/data/meeting_repository_impl.dart';
+// import 'package:momo_app/data/meeting_store.dart';
+import 'package:momo_app/domain/meeting_repository.dart';
 import 'package:momo_app/domain/selected_place.dart';
-import 'package:momo_app/domain/taxi_pod_meeting.dart';
+// import 'package:momo_app/domain/taxi_pod_meeting.dart';
 import 'package:momo_app/presentation/screens/location_picker_screen.dart';
 import 'package:momo_app/presentation/widgets/momo_form_field.dart';
 
-/// 예약형 택시팟 만들기. 순차 입력 + 개설 시 [MeetingStore]에 저장 후 메인 복귀.
+/// 예약형 택시팟 만들기.
+/// 개설 시 POST /meetings (category=taxi). 성공하면 집결 좌표(LatLng)를 pop.
+///
+/// 집결 매핑: preMeeting ?? departure → placeName / latitude / longitude
 class CreateTaxiPodScreen extends StatefulWidget {
-  const CreateTaxiPodScreen({super.key});
+  CreateTaxiPodScreen({
+    super.key,
+    MeetingRepository? meetingRepository,
+  }) : meetingRepository = meetingRepository ?? MeetingRepositoryImpl();
+
+  final MeetingRepository meetingRepository;
 
   @override
   State<CreateTaxiPodScreen> createState() => _CreateTaxiPodScreenState();
@@ -26,6 +36,7 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
   SelectedPlace? _preMeeting;
   int _capacity = 4;
   late DateTime _departureTime;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -67,7 +78,11 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
       _hasTitle &&
       _hasDeparture &&
       _hasDestination &&
-      _isDepartureTimeValid;
+      _isDepartureTimeValid &&
+      !_isSubmitting;
+
+  /// 지도 마커·서버 place 좌표. 사전 집결이 없으면 출발지.
+  SelectedPlace get _meetingPoint => _preMeeting ?? _departure!;
 
   static bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
@@ -138,21 +153,64 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
     });
   }
 
-  void _onSubmit() {
+  // --- [로컬 저장 — 롤백용] MeetingStore에만 넣고 pop(TaxiPodMeeting) ---
+  // void _onSubmit() {
+  //   if (!_canSubmit) return;
+  //
+  //   final meeting = TaxiPodMeeting(
+  //     id: DateTime.now().millisecondsSinceEpoch.toString(),
+  //     title: _titleController.text.trim(),
+  //     departure: _departure!,
+  //     destination: _destination!,
+  //     preMeeting: _preMeeting,
+  //     capacity: _capacity,
+  //     departureTime: _departureTime,
+  //   );
+  //
+  //   MeetingStore.instance.addTaxiPod(meeting);
+  //   Navigator.of(context).pop(meeting);
+  // }
+
+  /// 서버에 택시 모임 생성. 성공 시 집결 LatLng을 반환해 메인 카메라 이동에 씀.
+  Future<void> _onSubmit() async {
     if (!_canSubmit) return;
 
-    final meeting = TaxiPodMeeting(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    setState(() => _isSubmitting = true);
+
+    final meetingPoint = _meetingPoint;
+    final input = CreateMeetingInput(
       title: _titleController.text.trim(),
-      departure: _departure!,
-      destination: _destination!,
-      preMeeting: _preMeeting,
-      capacity: _capacity,
-      departureTime: _departureTime,
+      category: MeetingCategory.taxi,
+      meetingMode: MeetingMode.offline,
+      placeName: meetingPoint.label,
+      latitude: meetingPoint.latitude,
+      longitude: meetingPoint.longitude,
+      startAt: _departureTime,
+      maxMembers: _capacity,
+      categoryFields: {
+        'destinationName': _destination!.label,
+        'departPlaceName': _departure!.label,
+      },
     );
 
-    MeetingStore.instance.addTaxiPod(meeting);
-    Navigator.of(context).pop(meeting);
+    try {
+      await widget.meetingRepository.createMeeting(input);
+      if (!mounted) return;
+      // 메인: 마커 갱신 + 이 좌표로 카메라 이동
+      Navigator.of(context).pop(meetingPoint.latLng);
+    } on MeetingException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('택시팟 개설에 실패했어요.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -330,7 +388,9 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
                       const SizedBox(height: MomoSpacing.lg),
                       ElevatedButton(
                         onPressed: _canSubmit ? _onSubmit : null,
-                        child: const Text('🚕 택시팟 개설하기'),
+                        child: Text(
+                          _isSubmitting ? '개설 중…' : '🚕 택시팟 개설하기',
+                        ),
                       ),
                     ],
                     const SizedBox(height: MomoSpacing.lg),
