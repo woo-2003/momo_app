@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/domain/meeting_repository.dart';
+import 'package:momo_app/presentation/screens/join_map_screen.dart';
 import 'package:momo_app/presentation/screens/meeting_chat_screen.dart';
 
 /// 복숭아 버튼 → 「내가 가입한 번개」하단 시트.
@@ -9,7 +10,7 @@ import 'package:momo_app/presentation/screens/meeting_chat_screen.dart';
 /// - 데이터: listMeetings 전체 → getMeeting → isMember 만 표시
 /// - 채팅하기: 시트 유지한 채 채팅 push
 /// - 지도 위치: 집결 좌표를 pop → 메인에서 카메라 이동
-/// - 합류 지도: 이후 구현 (버튼 비활성)
+/// - 합류 지도: JoinMapScreen (로컬 GPS + 더미 멤버, 서버 미연동)
 /// - 높이: 내용만큼 (최대 화면 70%). 예전엔 SizedBox(height: 70%) 고정이라 공백이 큼.
 Future<LatLng?> showMyJoinedMeetingsSheet({
   required BuildContext context,
@@ -71,6 +72,20 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
           meetingTitle: meeting.title,
           meetingRepository: widget.meetingRepository,
         ),
+      ),
+    );
+  }
+
+  Future<void> _openJoinMap(MeetingDetail meeting) async {
+    if (meeting.latitude == null || meeting.longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('집결 위치가 없어 합류 지도를 열 수 없어요.')),
+      );
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => JoinMapScreen(meeting: meeting),
       ),
     );
   }
@@ -211,6 +226,7 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
                             meeting: meeting,
                             startAtLabel: _formatStartAt(meeting.startAt),
                             onChat: () => _openChat(meeting),
+                            onJoinMap: () => _openJoinMap(meeting),
                             onMapLocation: () => _focusOnMap(meeting),
                           );
                         },
@@ -241,12 +257,14 @@ class _JoinedMeetingCard extends StatelessWidget {
     required this.meeting,
     required this.startAtLabel,
     required this.onChat,
+    required this.onJoinMap,
     required this.onMapLocation,
   });
 
   final MeetingDetail meeting;
   final String startAtLabel;
   final VoidCallback onChat;
+  final VoidCallback onJoinMap;
   final VoidCallback onMapLocation;
 
   @override
@@ -341,7 +359,7 @@ class _JoinedMeetingCard extends StatelessWidget {
                   icon: Icons.my_location_rounded,
                   label: '합류 지도',
                   filled: true,
-                  onPressed: null,
+                  onPressed: onJoinMap,
                 ),
               ),
               const SizedBox(width: MomoSpacing.xxs),

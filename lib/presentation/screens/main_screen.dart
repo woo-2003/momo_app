@@ -9,7 +9,7 @@ import 'package:momo_app/domain/meeting_repository.dart';
 // import 'package:momo_app/domain/taxi_pod_meeting.dart';
 import 'package:momo_app/presentation/screens/create_taxi_pod_screen.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
-// import 'package:momo_app/presentation/screens/meeting_detail_screen.dart'; // 롤백: 마커→상세 직행 시
+import 'package:momo_app/presentation/screens/meeting_detail_screen.dart';
 import 'package:momo_app/presentation/screens/meeting_list_screen.dart';
 import 'package:momo_app/presentation/widgets/create_meeting_sheet.dart';
 import 'package:momo_app/presentation/widgets/map_icon_button.dart';
@@ -293,7 +293,24 @@ class _MainScreenState extends State<MainScreen> {
     //   );
     // }
 
-    final focus = await Navigator.of(context).push<LatLng>(
+    // --- [롤백용] LatLng만 받아 카메라 이동 ---
+    // final focus = await Navigator.of(context).push<LatLng>(
+    //   MaterialPageRoute(
+    //     builder: (_) => CreateTaxiPodScreen(
+    //       meetingRepository: widget.meetingRepository,
+    //     ),
+    //   ),
+    // );
+    // if (!mounted) return;
+    // await _loadTaxiMarkersFromServer();
+    // if (focus != null) {
+    //   await _mapController?.animateCamera(
+    //     CameraUpdate.newLatLngZoom(focus, 16),
+    //   );
+    // }
+
+    // 개설 직후: 마커 갱신 → 집결지로 카메라 → 호스트용 모임 정보(상세)
+    final created = await Navigator.of(context).push<CreateTaxiPodResult>(
       MaterialPageRoute(
         builder: (_) => CreateTaxiPodScreen(
           meetingRepository: widget.meetingRepository,
@@ -301,14 +318,27 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
 
-    if (!mounted) return;
-    await _loadTaxiMarkersFromServer();
+    if (!mounted || created == null) return;
 
-    if (focus != null) {
-      await _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(focus, 16),
-      );
-    }
+    await _loadTaxiMarkersFromServer();
+    await _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(created.focus, 16),
+    );
+
+    if (!mounted) return;
+    if (created.meetingId.isEmpty) return;
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MeetingDetailScreen(
+          meetingId: created.meetingId,
+          meetingRepository: widget.meetingRepository,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    // 상세에서 취소 등 반영
+    await _loadTaxiMarkersFromServer();
   }
 
   void _onFilterSelected(int index) {

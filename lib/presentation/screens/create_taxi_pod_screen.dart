@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/data/meeting_repository_impl.dart';
 // import 'package:momo_app/data/meeting_store.dart';
@@ -9,8 +10,20 @@ import 'package:momo_app/domain/selected_place.dart';
 import 'package:momo_app/presentation/screens/location_picker_screen.dart';
 import 'package:momo_app/presentation/widgets/momo_form_field.dart';
 
+/// 택시팟 개설 성공 결과.
+/// 메인: 마커 갱신 + 카메라 이동 + 모임 정보(상세)로 이동.
+class CreateTaxiPodResult {
+  const CreateTaxiPodResult({
+    required this.meetingId,
+    required this.focus,
+  });
+
+  final String meetingId;
+  final LatLng focus;
+}
+
 /// 예약형 택시팟 만들기.
-/// 개설 시 POST /meetings (category=taxi). 성공하면 집결 좌표(LatLng)를 pop.
+/// 개설 시 POST /meetings (category=taxi). 성공하면 [CreateTaxiPodResult] pop.
 ///
 /// 집결 매핑: preMeeting ?? departure → placeName / latitude / longitude
 class CreateTaxiPodScreen extends StatefulWidget {
@@ -171,7 +184,7 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
   //   Navigator.of(context).pop(meeting);
   // }
 
-  /// 서버에 택시 모임 생성. 성공 시 집결 LatLng을 반환해 메인 카메라 이동에 씀.
+  /// 서버에 택시 모임 생성. 성공 시 meetingId + 집결 좌표를 메인에 넘김.
   Future<void> _onSubmit() async {
     if (!_canSubmit) return;
 
@@ -194,10 +207,29 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
     );
 
     try {
-      await widget.meetingRepository.createMeeting(input);
+      final meetingId = await widget.meetingRepository.createMeeting(input);
       if (!mounted) return;
-      // 메인: 마커 갱신 + 이 좌표로 카메라 이동
-      Navigator.of(context).pop(meetingPoint.latLng);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            meetingId.isEmpty
+                ? '개설은 됐지만 모임 ID를 받지 못했어요.'
+                : '택시팟을 개설했어요.',
+          ),
+        ),
+      );
+
+      // --- [롤백용] 메인으로 좌표만 반환 ---
+      // Navigator.of(context).pop(meetingPoint.latLng);
+
+      // 개설 직후 동선: 메인이 상세(모임 정보)로 이어서 열어 줌
+      Navigator.of(context).pop(
+        CreateTaxiPodResult(
+          meetingId: meetingId,
+          focus: meetingPoint.latLng,
+        ),
+      );
     } on MeetingException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
