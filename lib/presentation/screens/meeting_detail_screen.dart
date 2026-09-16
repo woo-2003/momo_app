@@ -53,15 +53,60 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
   }
 
-  /// 참여: 위치 동의 게이트 → join. 취소/거부 시 join 호출 안 함.
-  Future<void> _onJoinPressed() async {
+  /// 참여: 위치 동의 → join → 채팅 진입 → 뒤로 오면 상세도 닫으며 갱신 신호.
+  Future<void> _onJoinPressed(MeetingDetail detail) async {
     final allowed = await MapLocationHelper.ensurePermissionForJoin(context);
     if (!allowed || !mounted) return;
 
-    await _runAction(
-      () => widget.meetingRepository.joinMeeting(widget.meetingId),
-    );
+    setState(() => _isWorking = true);
+    try {
+      await widget.meetingRepository.joinMeeting(widget.meetingId);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('택시팟에 참여했어요.')),
+      );
+
+      // --- [롤백용] 참여 후 바로 pop 만 ---
+      // _reload();
+      // if (mounted) Navigator.of(context).pop(true);
+
+      // 멤버가 됐으므로 채팅으로 이어줌 (시안: 참여 후 채팅 잠금 해제)
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => MeetingChatScreen(
+            meetingId: widget.meetingId,
+            meetingTitle: detail.title,
+            meetingRepository: widget.meetingRepository,
+          ),
+        ),
+      );
+      if (!mounted) return;
+      // 채팅에서 돌아옴 → 시트/메인 마커 갱신
+      Navigator.of(context).pop(true);
+    } on MeetingException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('참여에 실패했어요.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isWorking = false);
+    }
   }
+
+  // --- [롤백용] 위치 게이트만 하고 _runAction(join) ---
+  // Future<void> _onJoinPressed() async {
+  //   final allowed = await MapLocationHelper.ensurePermissionForJoin(context);
+  //   if (!allowed || !mounted) return;
+  //   await _runAction(
+  //     () => widget.meetingRepository.joinMeeting(widget.meetingId),
+  //   );
+  // }
 
   Future<void> _openChat(MeetingDetail detail) async {
     // 비멤버: 앱바 채팅은 잠금 UI. 여기로 오면 안내만.
@@ -377,7 +422,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     // 비멤버: 참여하기 (위치 동의 게이트 포함)
     if (!detail.isMember) {
       return ElevatedButton(
-        onPressed: _isWorking ? null : _onJoinPressed,
+        onPressed: _isWorking ? null : () => _onJoinPressed(detail),
         child: const Text('참여하기'),
       );
     }

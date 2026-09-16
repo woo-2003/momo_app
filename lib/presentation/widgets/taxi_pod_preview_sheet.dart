@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:momo_app/core/map_location_helper.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/domain/meeting_repository.dart';
+import 'package:momo_app/presentation/screens/meeting_chat_screen.dart';
 import 'package:momo_app/presentation/screens/meeting_detail_screen.dart';
 
 /// 메인 지도 마커 탭 시 뜨는 택시팟 미리보기 하단 시트.
@@ -81,10 +82,25 @@ class _TaxiPodPreviewSheetState extends State<TaxiPodPreviewSheet> {
     try {
       await widget.meetingRepository.joinMeeting(widget.meetingId);
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('택시팟에 참여했어요.')),
       );
-      // true → 메인에서 마커 새로고침
+
+      // --- [롤백용] 참여 후 시트만 닫기 ---
+      // Navigator.of(context).pop(true);
+
+      // 참여 직후 채팅으로 이동. 채팅에서 뒤로 오면 시트 닫고 메인 마커 갱신.
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => MeetingChatScreen(
+            meetingId: widget.meetingId,
+            meetingTitle: detail.title,
+            meetingRepository: widget.meetingRepository,
+          ),
+        ),
+      );
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } on MeetingException catch (e) {
       if (!mounted) return;

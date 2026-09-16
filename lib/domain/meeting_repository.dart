@@ -30,6 +30,12 @@ class MeetingSummary {
   final double? latitude;
   final double? longitude;
 
+  /// 택시 등 categoryFields.destinationName (목록 API 확장 예정 / 상세에서 채움)
+  final String? destinationName;
+
+  /// 택시 categoryFields.departPlaceName
+  final String? departPlaceName;
+
   const MeetingSummary({
     required this.meetingId,
     required this.category,
@@ -42,7 +48,19 @@ class MeetingSummary {
     this.placeName,
     this.latitude,
     this.longitude,
+    this.destinationName,
+    this.departPlaceName,
   });
+
+  /// 마커 말풍용: `출발 → 도착` 또는 집결명만.
+  String get markerRouteLabel {
+    final from = (departPlaceName ?? placeName ?? title).trim();
+    final to = destinationName?.trim();
+    if (to != null && to.isNotEmpty) {
+      return '$from → $to';
+    }
+    return from;
+  }
 }
 
 class MeetingDetail extends MeetingSummary {
@@ -65,6 +83,8 @@ class MeetingDetail extends MeetingSummary {
     super.placeName,
     super.latitude,
     super.longitude,
+    super.destinationName,
+    super.departPlaceName,
     required this.description,
     required this.categoryFields,
     required this.creatorId,

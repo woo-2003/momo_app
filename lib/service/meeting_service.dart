@@ -214,6 +214,7 @@ class MeetingService {
   }
 
   MeetingSummary _mapMeetingSummary(Map<String, dynamic> json) {
+    final fields = _asStringKeyedMap(json['categoryFields']);
     return MeetingSummary(
       meetingId: json['meetingId']?.toString() ?? '',
       category: _parseCategory(json['category']?.toString()),
@@ -226,6 +227,9 @@ class MeetingService {
       placeName: json['placeName']?.toString(),
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      // 목록에 categoryFields가 오면 바로 사용 (동준 확장 후).
+      destinationName: _nonEmptyString(fields['destinationName']),
+      departPlaceName: _nonEmptyString(fields['departPlaceName']),
     );
   }
 
@@ -244,7 +248,7 @@ class MeetingService {
               .toList()
         : <MeetingMember>[];
 
-    final categoryFields = json['categoryFields'];
+    final categoryFields = _asStringKeyedMap(json['categoryFields']);
     return MeetingDetail(
       meetingId: json['meetingId']?.toString() ?? '',
       category: _parseCategory(json['category']?.toString()),
@@ -257,15 +261,29 @@ class MeetingService {
       placeName: json['placeName']?.toString(),
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      destinationName: _nonEmptyString(categoryFields['destinationName']),
+      departPlaceName: _nonEmptyString(categoryFields['departPlaceName']),
       description: json['description']?.toString() ?? '',
-      categoryFields: categoryFields is Map<String, dynamic>
-          ? categoryFields
-          : const {},
+      categoryFields: categoryFields,
       creatorId: json['creatorId']?.toString() ?? '',
       isHost: json['isHost'] == true,
       isMember: json['isMember'] == true,
       members: members,
     );
+  }
+
+  Map<String, dynamic> _asStringKeyedMap(dynamic raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) {
+      return raw.map((key, value) => MapEntry(key.toString(), value));
+    }
+    return const {};
+  }
+
+  String? _nonEmptyString(dynamic raw) {
+    final text = raw?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+    return text;
   }
 
   ChatMessage _mapChatMessage(Map<String, dynamic> json) {

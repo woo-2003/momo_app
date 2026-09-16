@@ -14,6 +14,8 @@ import 'package:momo_app/presentation/screens/meeting_list_screen.dart';
 import 'package:momo_app/presentation/widgets/create_meeting_sheet.dart';
 import 'package:momo_app/presentation/widgets/map_icon_button.dart';
 import 'package:momo_app/presentation/widgets/map_my_location_button.dart';
+import 'package:momo_app/presentation/widgets/my_joined_meetings_sheet.dart';
+import 'package:momo_app/presentation/widgets/taxi_marker_icon.dart';
 import 'package:momo_app/presentation/widgets/taxi_pod_preview_sheet.dart';
 
 // 로그인 후 홈 — 장면 A(메인 지도).
@@ -132,10 +134,43 @@ class _MainScreenState extends State<MainScreen> {
       );
       if (!mounted) return;
 
-      _serverTaxiMeetings = items
+      final withCoords = items
           .where((m) => m.latitude != null && m.longitude != null)
           .toList();
-      setState(() => _markers = _buildServerTaxiMarkers());
+
+      // 임시: 목록에 destinationName이 없으면 상세로 보강.
+      // 동준이 GET /meetings 에 categoryFields 넣으면 이 블록은 제거해도 됨.
+      final enriched = await Future.wait(
+        withCoords.map((summary) async {
+          if (summary.destinationName != null) return summary;
+          try {
+            final detail =
+                await widget.meetingRepository.getMeeting(summary.meetingId);
+            return MeetingSummary(
+              meetingId: summary.meetingId,
+              category: summary.category,
+              meetingMode: summary.meetingMode,
+              status: summary.status,
+              title: summary.title,
+              startAt: summary.startAt,
+              currentMembers: detail.currentMembers,
+              maxMembers: detail.maxMembers,
+              placeName: detail.placeName ?? summary.placeName,
+              latitude: summary.latitude,
+              longitude: summary.longitude,
+              destinationName: detail.destinationName,
+              departPlaceName:
+                  detail.departPlaceName ?? summary.departPlaceName,
+            );
+          } catch (_) {
+            return summary;
+          }
+        }),
+      );
+
+      if (!mounted) return;
+      _serverTaxiMeetings = enriched;
+      await _rebuildCustomMarkers();
     } on MeetingException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -149,28 +184,62 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Set<Marker> _buildServerTaxiMarkers() {
-    // 전체(0) · 택시팟(1)만 표시. 스터디/스포츠/밥약은 이번 스프린트 미연동.
+  /// 말풍 비트맵 마커 생성 후 setState.
+  Future<void> _rebuildCustomMarkers() async {
     final showTaxi = _selectedFilterIndex == 0 || _selectedFilterIndex == 1;
-    if (!showTaxi) return {};
+    if (!showTaxi) {
+      setState(() => _markers = {});
+      return;
+    }
 
-    return {
-      for (final meeting in _serverTaxiMeetings)
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final next = <Marker>{};
+
+    for (final meeting in _serverTaxiMeetings) {
+      final icon = await TaxiMarkerIcon.create(
+        routeLabel: meeting.markerRouteLabel,
+        currentMembers: meeting.currentMembers,
+        maxMembers: meeting.maxMembers,
+        pixelRatio: pixelRatio,
+      );
+      next.add(
         Marker(
           markerId: MarkerId(meeting.meetingId),
           position: LatLng(meeting.latitude!, meeting.longitude!),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueOrange,
-          ),
-          infoWindow: InfoWindow(title: meeting.title),
-          // onTap: () => _openMeetingDetail(meeting.meetingId),
+          icon: icon,
+          anchor: const Offset(0.5, 1.0),
+          // infoWindow: InfoWindow(title: meeting.title), // 말풍이 대체
           onTap: () => _showTaxiPodPreview(meeting.meetingId),
         ),
-    };
+      );
+    }
+
+    if (!mounted) return;
+    setState(() => _markers = next);
   }
 
+  // --- [롤백용] 기본 주황 핀 마커 ---
+  // Set<Marker> _buildServerTaxiMarkers() {
+  //   final showTaxi = _selectedFilterIndex == 0 || _selectedFilterIndex == 1;
+  //   if (!showTaxi) return {};
+  //
+  //   return {
+  //     for (final meeting in _serverTaxiMeetings)
+  //       Marker(
+  //         markerId: MarkerId(meeting.meetingId),
+  //         position: LatLng(meeting.latitude!, meeting.longitude!),
+  //         icon: BitmapDescriptor.defaultMarkerWithHue(
+  //           BitmapDescriptor.hueOrange,
+  //         ),
+  //         infoWindow: InfoWindow(title: meeting.title),
+  //         onTap: () => _showTaxiPodPreview(meeting.meetingId),
+  //       ),
+  //   };
+  // }
+
   void _applyMarkerFilter() {
-    setState(() => _markers = _buildServerTaxiMarkers());
+    // setState(() => _markers = _buildServerTaxiMarkers());
+    _rebuildCustomMarkers();
   }
 
   // --- [롤백용] 마커 탭 → 상세 화면으로 바로 이동 ---
@@ -251,6 +320,20 @@ class _MainScreenState extends State<MainScreen> {
   void _openMeetingList() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => MeetingListScreen()),
+    );
+  }
+
+  /// 복숭아: 내가 참여 중인 번개 시트.
+  /// 「지도 위치」선택 시 LatLng 반환 → 카메라 이동.
+  Future<void> _showMyJoinedMeetings() async {
+    final focus = await showMyJoinedMeetingsSheet(
+      context: context,
+      meetingRepository: widget.meetingRepository,
+    );
+    if (!mounted || focus == null) return;
+
+    await _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(focus, 16),
     );
   }
 
@@ -376,7 +459,8 @@ class _MainScreenState extends State<MainScreen> {
             right: 0,
             bottom: MomoSpacing.lg,
             child: Center(
-              child: _PeachFab(onPressed: _openMeetingList),
+              // onPressed: _openMeetingList, // 롤백: 전체 모임 목록 화면
+              child: _PeachFab(onPressed: _showMyJoinedMeetings),
             ),
           ),
         ],
