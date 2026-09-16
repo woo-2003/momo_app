@@ -9,11 +9,12 @@ import 'package:momo_app/domain/meeting_repository.dart';
 // import 'package:momo_app/domain/taxi_pod_meeting.dart';
 import 'package:momo_app/presentation/screens/create_taxi_pod_screen.dart';
 import 'package:momo_app/presentation/screens/login_screen.dart';
-import 'package:momo_app/presentation/screens/meeting_detail_screen.dart';
+// import 'package:momo_app/presentation/screens/meeting_detail_screen.dart'; // 롤백: 마커→상세 직행 시
 import 'package:momo_app/presentation/screens/meeting_list_screen.dart';
 import 'package:momo_app/presentation/widgets/create_meeting_sheet.dart';
 import 'package:momo_app/presentation/widgets/map_icon_button.dart';
 import 'package:momo_app/presentation/widgets/map_my_location_button.dart';
+import 'package:momo_app/presentation/widgets/taxi_pod_preview_sheet.dart';
 
 // 로그인 후 홈 — 장면 A(메인 지도).
 // 택시 마커: GET /meetings?category=taxi (집결 좌표). 로컬 MeetingStore는 롤백용으로 유지.
@@ -162,7 +163,8 @@ class _MainScreenState extends State<MainScreen> {
             BitmapDescriptor.hueOrange,
           ),
           infoWindow: InfoWindow(title: meeting.title),
-          onTap: () => _openMeetingDetail(meeting.meetingId),
+          // onTap: () => _openMeetingDetail(meeting.meetingId),
+          onTap: () => _showTaxiPodPreview(meeting.meetingId),
         ),
     };
   }
@@ -171,18 +173,32 @@ class _MainScreenState extends State<MainScreen> {
     setState(() => _markers = _buildServerTaxiMarkers());
   }
 
-  Future<void> _openMeetingDetail(String meetingId) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => MeetingDetailScreen(
-          meetingId: meetingId,
-          meetingRepository: widget.meetingRepository,
-        ),
-      ),
+  // --- [롤백용] 마커 탭 → 상세 화면으로 바로 이동 ---
+  // Future<void> _openMeetingDetail(String meetingId) async {
+  //   await Navigator.of(context).push<void>(
+  //     MaterialPageRoute<void>(
+  //       builder: (_) => MeetingDetailScreen(
+  //         meetingId: meetingId,
+  //         meetingRepository: widget.meetingRepository,
+  //       ),
+  //     ),
+  //   );
+  //   if (!mounted) return;
+  //   await _loadTaxiMarkersFromServer();
+  // }
+
+  /// 마커 탭 → 지도 유지 + 하단 미리보기 시트.
+  /// 시트에서 참여/상세 후 true면 마커 목록 갱신.
+  Future<void> _showTaxiPodPreview(String meetingId) async {
+    final changed = await showTaxiPodPreviewSheet(
+      context: context,
+      meetingId: meetingId,
+      meetingRepository: widget.meetingRepository,
     );
     if (!mounted) return;
-    // 취소·참여 변경 반영
-    await _loadTaxiMarkersFromServer();
+    if (changed == true) {
+      await _loadTaxiMarkersFromServer();
+    }
   }
 
   Future<void> _onAddPressed() async {
