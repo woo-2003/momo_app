@@ -1,5 +1,6 @@
 // momo_server 진입점. OTP + 인증 HTTP + 모임 API + GPS + Socket.IO 채팅.
 // STORAGE=firestore|sqlite. 모임/실시간 채팅/GPS는 firestore 전용.
+// 우영: 장소 API(placeRoutes · 카카오 로컬) 추가함. 기존 라우트는 유지.
 require("dotenv").config();
 
 const http = require("http");
@@ -23,6 +24,10 @@ app.use("/", otpRoutes);
 
 const authRoutes = require("./routes/authRoutes");
 app.use("/", authRoutes);
+
+// 우영: 카카오 로컬 장소 API(검색/역지오코딩) 라우트 추가함. 기존 OTP·인증·모임과 무관.
+const placeRoutes = require("./routes/placeRoutes");
+app.use("/", placeRoutes);
 
 if (storage === "firestore") {
   const meetingRoutes = require("./routes/meetingRoutes");

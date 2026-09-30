@@ -58,7 +58,9 @@ class _LoginFormScreenState extends State<LoginFormScreen> {
       // ===== [DEBUG] 토큰/로그인 상태 확인용 — 확인 후 이 블록을 삭제하세요 =====
       if (kDebugMode) {
         debugPrint('[LOGIN] 로그인 성공');
-        debugPrint('[LOGIN] userId=${session.userId}, nickname=${session.nickname}');
+        debugPrint(
+          '[LOGIN] userId=${session.userId}, nickname=${session.nickname}',
+        );
         debugPrint('[LOGIN] token=${session.accessToken}');
         debugPrint('[LOGIN] expiresAt=${session.accessTokenExpiresAt}');
       }
@@ -66,14 +68,14 @@ class _LoginFormScreenState extends State<LoginFormScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+        MaterialPageRoute<void>(builder: (_) => MainScreen()),
         (route) => false,
       );
     } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

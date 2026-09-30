@@ -75,6 +75,7 @@ npm run db:migrate       # SQLite → Firestore 1회 이관
 npm run db:migrate-chat  # 기존 meetings 메시지를 chat_rooms 로 분리
 npm run smoke:meetings   # 모임 API 스모크 (서버 실행 중)
 npm run smoke:location   # GPS 위치 API 스모크 (서버 실행 중)
+npm run smoke:places     # 우영: 장소 API 스모크 (KAKAO_REST_API_KEY + 로그인 계정)
 ```
 
 ## 인증 API
@@ -126,3 +127,12 @@ npm run smoke:socket   # SMOKE_EMAIL/SMOKE_PASSWORD 필요
 ```
 
 상세 명세: `docs/모임채팅_프로토타입_기술명세서.md`
+
+## 장소 API (우영 추가 · 카카오 로컬 서버 경유)
+
+`.env`에 `KAKAO_REST_API_KEY` 필요. `Authorization: Bearer <JWT>` 필수.
+
+- `GET /places/reverse?lat=&lng=` — 좌표 → 주소 (`label`, `roadAddress`, `address`)
+- `GET /places/search?q=` — 키워드 장소 검색 (`items[]`: name, address, latitude, longitude)
+
+카카오 키는 서버에만 둔다. 무료 쿼터 앱 키 사용 시 유료 API는 켜지 말 것.

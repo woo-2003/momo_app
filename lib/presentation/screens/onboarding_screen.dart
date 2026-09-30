@@ -72,7 +72,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _goMain() {
     // 가입 스택(랜딩~닉네임)을 비우고 메인만 남긴다.
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const MainScreen()),
+      MaterialPageRoute<void>(builder: (_) => MainScreen()),
       (route) => false,
     );
   }
