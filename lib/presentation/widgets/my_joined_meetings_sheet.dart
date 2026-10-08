@@ -65,7 +65,9 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
   }
 
   void _reload() {
-    setState(() => _sheetFuture = _loadSheetData());
+    setState(() {
+      _sheetFuture = _loadSheetData();
+    });
   }
 
   /// open 목록 → 상세 → 멤버만 + 로컬 종료 스냅샷.
