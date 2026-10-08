@@ -36,6 +36,12 @@ class MeetingSummary {
   /// 택시 categoryFields.departPlaceName
   final String? departPlaceName;
 
+  /// sports.categoryFields.sportType (목록에 없으면 상세 enrichment)
+  final String? sportType;
+
+  /// game.categoryFields.gameName
+  final String? gameName;
+
   const MeetingSummary({
     required this.meetingId,
     required this.category,
@@ -50,6 +56,8 @@ class MeetingSummary {
     this.longitude,
     this.destinationName,
     this.departPlaceName,
+    this.sportType,
+    this.gameName,
   });
 
   /// 마커 말풍용: `출발 → 도착` 또는 집결명만.
@@ -85,6 +93,8 @@ class MeetingDetail extends MeetingSummary {
     super.longitude,
     super.destinationName,
     super.departPlaceName,
+    super.sportType,
+    super.gameName,
     required this.description,
     required this.categoryFields,
     required this.creatorId,

@@ -161,7 +161,9 @@ class MeetingService {
       final http.Response response;
       switch (method) {
         case 'GET':
-          response = await _client.get(target, headers: headers).timeout(_timeout);
+          response = await _client
+              .get(target, headers: headers)
+              .timeout(_timeout);
           break;
         case 'POST':
           response = await _client
@@ -252,6 +254,8 @@ class MeetingService {
       // 목록에 categoryFields가 오면 바로 사용 (동준 확장 후).
       destinationName: _nonEmptyString(fields['destinationName']),
       departPlaceName: _nonEmptyString(fields['departPlaceName']),
+      sportType: _nonEmptyString(fields['sportType']),
+      gameName: _nonEmptyString(fields['gameName']),
     );
   }
 
@@ -285,6 +289,8 @@ class MeetingService {
       longitude: (json['longitude'] as num?)?.toDouble(),
       destinationName: _nonEmptyString(categoryFields['destinationName']),
       departPlaceName: _nonEmptyString(categoryFields['departPlaceName']),
+      sportType: _nonEmptyString(categoryFields['sportType']),
+      gameName: _nonEmptyString(categoryFields['gameName']),
       description: json['description']?.toString() ?? '',
       categoryFields: categoryFields,
       creatorId: json['creatorId']?.toString() ?? '',

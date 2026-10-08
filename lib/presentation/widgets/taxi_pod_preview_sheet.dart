@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:momo_app/core/map_location_helper.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/domain/meeting_repository.dart';
@@ -6,6 +7,7 @@ import 'package:momo_app/presentation/screens/meeting_chat_screen.dart';
 import 'package:momo_app/presentation/screens/meeting_detail_screen.dart';
 
 /// 메인 지도 마커 탭 시 뜨는 택시팟 미리보기 하단 시트.
+/// 색은 [MomoColors]만 사용.
 /// 지도는 유지한 채 요약만 보여주고, 상세 / 참여로 이어진다.
 Future<bool?> showTaxiPodPreviewSheet({
   required BuildContext context,
@@ -45,15 +47,46 @@ class TaxiPodPreviewSheet extends StatefulWidget {
 class _TaxiPodPreviewSheetState extends State<TaxiPodPreviewSheet> {
   late Future<MeetingDetail> _detailFuture;
   bool _isJoining = false;
+  String? _distanceLabel;
 
   @override
   void initState() {
     super.initState();
     _detailFuture = widget.meetingRepository.getMeeting(widget.meetingId);
+    _detailFuture.then(_resolveDistance).catchError((_) {});
+  }
+
+  Future<void> _resolveDistance(MeetingDetail detail) async {
+    final lat = detail.latitude;
+    final lng = detail.longitude;
+    if (lat == null || lng == null) return;
+    if (!await MapLocationHelper.hasPermission()) return;
+
+    try {
+      final me = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
+      );
+      final meters = Geolocator.distanceBetween(
+        me.latitude,
+        me.longitude,
+        lat,
+        lng,
+      );
+      if (!mounted) return;
+      setState(() => _distanceLabel = _formatDistance(meters));
+    } catch (_) {
+      // 거리 실패 시 라벨만 숨김
+    }
+  }
+
+  String _formatDistance(double meters) {
+    if (meters < 1000) return '${meters.round()}m 근처';
+    return '${(meters / 1000).toStringAsFixed(1)}km 근처';
   }
 
   Future<void> _openDetail(MeetingDetail detail) async {
-    // 시트 위에서 상세로 이동. 상세에서 참여/취소 후 돌아오면 마커 갱신 신호로 true.
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => MeetingDetailScreen(
@@ -68,13 +101,12 @@ class _TaxiPodPreviewSheetState extends State<TaxiPodPreviewSheet> {
 
   Future<void> _onJoin(MeetingDetail detail) async {
     if (detail.isMember) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미 참여 중인 택시팟이에요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이미 참여 중인 택시팟이에요.')));
       return;
     }
 
-    // 위치 미동의 시 다이얼로그 → 취소하면 join 하지 않음
     final allowed = await MapLocationHelper.ensurePermissionForJoin(context);
     if (!allowed || !mounted) return;
 
@@ -83,14 +115,13 @@ class _TaxiPodPreviewSheetState extends State<TaxiPodPreviewSheet> {
       await widget.meetingRepository.joinMeeting(widget.meetingId);
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('택시팟에 참여했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('택시팟에 참여했어요.')));
 
       // --- [롤백용] 참여 후 시트만 닫기 ---
       // Navigator.of(context).pop(true);
 
-      // 참여 직후 채팅으로 이동. 채팅에서 뒤로 오면 시트 닫고 메인 마커 갱신.
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (_) => MeetingChatScreen(
@@ -104,14 +135,14 @@ class _TaxiPodPreviewSheetState extends State<TaxiPodPreviewSheet> {
       Navigator.of(context).pop(true);
     } on MeetingException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('참여에 실패했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('참여에 실패했어요.')));
     } finally {
       if (mounted) setState(() => _isJoining = false);
     }
@@ -154,6 +185,7 @@ class _TaxiPodPreviewSheetState extends State<TaxiPodPreviewSheet> {
             final detail = snapshot.data!;
             return _PreviewBody(
               detail: detail,
+              distanceLabel: _distanceLabel,
               isJoining: _isJoining,
               onClose: () => Navigator.of(context).pop(),
               onDetail: () => _openDetail(detail),
@@ -169,6 +201,7 @@ class _TaxiPodPreviewSheetState extends State<TaxiPodPreviewSheet> {
 class _PreviewBody extends StatelessWidget {
   const _PreviewBody({
     required this.detail,
+    required this.distanceLabel,
     required this.isJoining,
     required this.onClose,
     required this.onDetail,
@@ -176,12 +209,12 @@ class _PreviewBody extends StatelessWidget {
   });
 
   final MeetingDetail detail;
+  final String? distanceLabel;
   final bool isJoining;
   final VoidCallback onClose;
   final VoidCallback onDetail;
   final VoidCallback onJoin;
 
-  /// 정원 1명 남으면 시안 참고용 「마감직전」 배지.
   bool get _isAlmostFull =>
       detail.maxMembers > 0 &&
       detail.currentMembers >= detail.maxMembers - 1 &&
@@ -190,7 +223,7 @@ class _PreviewBody extends StatelessWidget {
   String? get _destinationName {
     final raw = detail.categoryFields['destinationName'];
     if (raw is String && raw.trim().isNotEmpty) return raw.trim();
-    return null;
+    return detail.destinationName;
   }
 
   @override
@@ -199,7 +232,6 @@ class _PreviewBody extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 드래그 핸들
         Center(
           child: Container(
             width: 40,
@@ -213,45 +245,67 @@ class _PreviewBody extends StatelessWidget {
         const SizedBox(height: MomoSpacing.sm),
         Row(
           children: [
-            _Badge(
+            const _Badge(
               label: '택시팟',
-              background: MomoColors.surface,
-              foreground: MomoColors.textMain,
+              background: MomoColors.taxiGoldSoft,
+              foreground: MomoColors.taxiGoldDark,
             ),
             if (_isAlmostFull) ...[
               const SizedBox(width: MomoSpacing.xs),
               _Badge(
-                label: '마감직전',
-                background: MomoColors.primary.withValues(alpha: 0.2),
+                label: '마감직전 🚨',
+                background: MomoColors.primary.withValues(alpha: 0.18),
                 foreground: MomoColors.primary,
               ),
             ],
             const Spacer(),
-            IconButton(
-              onPressed: onClose,
-              icon: const Icon(Icons.close_rounded),
-              color: MomoColors.textSub,
+            if (distanceLabel != null) ...[
+              Text(
+                distanceLabel!,
+                style: MomoTextStyles.caption.copyWith(
+                  color: MomoColors.textSub,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: MomoSpacing.xxs),
+            ],
+            Material(
+              color: MomoColors.surface,
+              shape: const CircleBorder(),
+              child: InkWell(
+                onTap: onClose,
+                customBorder: const CircleBorder(),
+                child: const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: MomoColors.textSub,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: MomoSpacing.xs),
-        Text(detail.title, style: MomoTextStyles.heading.copyWith(fontSize: 18)),
+        const SizedBox(height: MomoSpacing.sm),
+        Text(
+          detail.title,
+          style: MomoTextStyles.heading.copyWith(fontSize: 18),
+        ),
         if (detail.placeName != null) ...[
           const SizedBox(height: MomoSpacing.xs),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Icon(
-                Icons.location_on_outlined,
+                Icons.location_on,
                 size: 18,
                 color: MomoColors.primary,
               ),
               const SizedBox(width: MomoSpacing.xxs),
               Expanded(
-                child: Text(
-                  detail.placeName!,
-                  style: MomoTextStyles.caption,
-                ),
+                child: Text(detail.placeName!, style: MomoTextStyles.caption),
               ),
             ],
           ),
@@ -266,15 +320,15 @@ class _PreviewBody extends StatelessWidget {
         const SizedBox(height: MomoSpacing.sm),
         Row(
           children: [
-            const Icon(
-              Icons.people_outline_rounded,
+            Icon(
+              Icons.people_alt_rounded,
               size: 18,
-              color: MomoColors.textSub,
+              color: MomoColors.primary.withValues(alpha: 0.85),
             ),
             const SizedBox(width: MomoSpacing.xxs),
             Text(
               '${detail.currentMembers} / ${detail.maxMembers}명',
-              style: MomoTextStyles.body,
+              style: MomoTextStyles.body.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -282,24 +336,53 @@ class _PreviewBody extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: OutlinedButton(
-                onPressed: isJoining ? null : onDetail,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: MomoColors.textMain,
-                  side: const BorderSide(color: MomoColors.border),
-                  backgroundColor: MomoColors.surface,
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: isJoining ? null : onDetail,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: MomoColors.textMain,
+                    side: const BorderSide(color: MomoColors.border),
+                    backgroundColor: MomoColors.neutralFill,
+                    // theme minHeight 56 > SizedBox 48 → 제약 예외 방지
+                    minimumSize: const Size(0, 48),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        MomoRadius.component,
+                      ),
+                    ),
+                  ),
+                  child: const Text('상세정보 보기'),
                 ),
-                child: const Text('상세정보 보기'),
               ),
             ),
             const SizedBox(width: MomoSpacing.xs),
             Expanded(
-              child: ElevatedButton(
-                onPressed: isJoining || detail.isMember ? null : onJoin,
-                child: Text(
-                  detail.isMember
-                      ? '참여 중'
-                      : (isJoining ? '참여 중…' : '참여하기'),
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: isJoining || detail.isMember ? null : onJoin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MomoColors.primary,
+                    foregroundColor: MomoColors.onPrimary,
+                    disabledBackgroundColor: MomoColors.disabled,
+                    elevation: 2,
+                    shadowColor: MomoColors.primary.withValues(alpha: 0.35),
+                    minimumSize: const Size(0, 48),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        MomoRadius.component,
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    detail.isMember
+                        ? '참여 중'
+                        : (isJoining ? '참여 중…' : '참여하기'),
+                    style: MomoTextStyles.button,
+                  ),
                 ),
               ),
             ),
@@ -331,13 +414,12 @@ class _Badge extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: MomoColors.border),
       ),
       child: Text(
         label,
         style: MomoTextStyles.caption.copyWith(
           color: foreground,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           fontSize: 12,
         ),
       ),

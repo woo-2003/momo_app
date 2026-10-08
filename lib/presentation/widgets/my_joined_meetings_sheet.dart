@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:momo_app/core/meeting_display.dart';
 import 'package:momo_app/core/theme.dart';
+import 'package:momo_app/data/ended_meetings_store.dart';
 import 'package:momo_app/domain/meeting_repository.dart';
 import 'package:momo_app/presentation/screens/join_map_screen.dart';
 import 'package:momo_app/presentation/screens/meeting_chat_screen.dart';
+import 'package:momo_app/presentation/screens/meeting_detail_screen.dart';
+import 'package:momo_app/presentation/screens/meeting_ended_screen.dart';
+import 'package:momo_app/presentation/utils/meeting_end_helper.dart';
 
 /// 복숭아 버튼 → 「내가 가입한 번개」하단 시트.
+/// 색은 [MomoColors]만 사용.
 ///
 /// - 데이터: listMeetings 전체 → getMeeting → isMember 만 표시
+/// - 카드 탭 / 영역: 모임 상세
 /// - 채팅하기: 시트 유지한 채 채팅 push
 /// - 지도 위치: 집결 좌표를 pop → 메인에서 카메라 이동
 /// - 합류 지도: JoinMapScreen (로컬 GPS + 더미 멤버, 서버 미연동)
-/// - 높이: 내용만큼 (최대 화면 70%). 예전엔 SizedBox(height: 70%) 고정이라 공백이 큼.
+/// - 높이: 내용만큼 (최대 화면 70%).
 Future<LatLng?> showMyJoinedMeetingsSheet({
   required BuildContext context,
   required MeetingRepository meetingRepository,
+  ValueChanged<int>? onJoinedCount,
 }) {
   return showModalBottomSheet<LatLng?>(
     context: context,
@@ -24,7 +32,10 @@ Future<LatLng?> showMyJoinedMeetingsSheet({
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (sheetContext) {
-      return MyJoinedMeetingsSheet(meetingRepository: meetingRepository);
+      return MyJoinedMeetingsSheet(
+        meetingRepository: meetingRepository,
+        onJoinedCount: onJoinedCount,
+      );
     },
   );
 }
@@ -33,47 +44,120 @@ class MyJoinedMeetingsSheet extends StatefulWidget {
   const MyJoinedMeetingsSheet({
     super.key,
     required this.meetingRepository,
+    this.onJoinedCount,
   });
 
   final MeetingRepository meetingRepository;
+  final ValueChanged<int>? onJoinedCount;
 
   @override
   State<MyJoinedMeetingsSheet> createState() => _MyJoinedMeetingsSheetState();
 }
 
 class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
-  late Future<List<MeetingDetail>> _joinedFuture;
+  late Future<_JoinedSheetData> _sheetFuture;
+  int _tabIndex = 0; // 0 전체, 1 진행중, 2 종료
 
   @override
   void initState() {
     super.initState();
-    _joinedFuture = _loadJoinedMeetings();
+    _sheetFuture = _loadSheetData();
   }
 
-  /// open 목록 → 상세 조회 → 내가 멤버(호스트 포함)인 것만.
-  Future<List<MeetingDetail>> _loadJoinedMeetings() async {
-    final summaries = await widget.meetingRepository.listMeetings();
-    if (summaries.isEmpty) return const [];
+  void _reload() {
+    setState(() => _sheetFuture = _loadSheetData());
+  }
 
-    final details = await Future.wait(
-      summaries.map(
-        (s) => widget.meetingRepository.getMeeting(s.meetingId),
+  /// open 목록 → 상세 → 멤버만 + 로컬 종료 스냅샷.
+  Future<_JoinedSheetData> _loadSheetData() async {
+    final summaries = await widget.meetingRepository.listMeetings();
+    final details = summaries.isEmpty
+        ? const <MeetingDetail>[]
+        : await Future.wait(
+            summaries.map(
+              (s) => widget.meetingRepository.getMeeting(s.meetingId),
+            ),
+          );
+    final active = details.where((d) => d.isMember).toList();
+    final ended = await EndedMeetingsStore().list();
+    // 아직 open 목록에 남아 있으면 종료 탭에서 제외
+    final activeIds = active.map((e) => e.meetingId).toSet();
+    final endedOnly =
+        ended.where((e) => !activeIds.contains(e.meetingId)).toList();
+
+    widget.onJoinedCount?.call(active.length);
+    return _JoinedSheetData(active: active, ended: endedOnly);
+  }
+
+  Future<void> _openDetail(MeetingDetail meeting) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MeetingDetailScreen(
+          meetingId: meeting.meetingId,
+          meetingRepository: widget.meetingRepository,
+        ),
       ),
     );
-    return details.where((d) => d.isMember).toList();
+    if (mounted) _reload();
   }
 
-  Future<void> _openChat(MeetingDetail meeting) async {
-    // 시트는 닫지 않음 (권장: 채팅 후 목록으로 복귀)
+  Future<void> _openChat(
+    MeetingDetail meeting, {
+    bool forceReadOnly = false,
+  }) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => MeetingChatScreen(
           meetingId: meeting.meetingId,
           meetingTitle: meeting.title,
           meetingRepository: widget.meetingRepository,
+          forceReadOnly: forceReadOnly,
         ),
       ),
     );
+  }
+
+  Future<void> _endMeeting(MeetingDetail meeting) async {
+    final ended = await endMeetingAsHost(
+      context: context,
+      meetingRepository: widget.meetingRepository,
+      meeting: meeting,
+    );
+    if (ended && mounted) _reload();
+  }
+
+  Future<void> _openEndedChat(EndedMeetingSnapshot snap) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MeetingChatScreen(
+          meetingId: snap.meetingId,
+          meetingTitle: snap.title,
+          meetingRepository: widget.meetingRepository,
+          forceReadOnly: true,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openEndedSummary(EndedMeetingSnapshot snap) async {
+    try {
+      final detail =
+          await widget.meetingRepository.getMeeting(snap.meetingId);
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => MeetingEndedScreen(
+            meeting: detail,
+            meetingRepository: widget.meetingRepository,
+          ),
+        ),
+      );
+    } on MeetingException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    }
   }
 
   Future<void> _openJoinMap(MeetingDetail meeting) async {
@@ -85,7 +169,10 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
     }
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => JoinMapScreen(meeting: meeting),
+        builder: (_) => JoinMapScreen(
+          meeting: meeting,
+          meetingRepository: widget.meetingRepository,
+        ),
       ),
     );
   }
@@ -124,8 +211,8 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
             MomoSpacing.sm,
             MomoSpacing.md,
           ),
-          child: FutureBuilder<List<MeetingDetail>>(
-            future: _joinedFuture,
+          child: FutureBuilder<_JoinedSheetData>(
+            future: _sheetFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
                 return const Padding(
@@ -150,7 +237,12 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
                 );
               }
 
-              final joined = snapshot.data ?? const <MeetingDetail>[];
+              final data = snapshot.data ??
+                  const _JoinedSheetData(active: [], ended: []);
+              final showActive = _tabIndex != 2;
+              final showEnded = _tabIndex != 1;
+              final active = data.active;
+              final ended = data.ended;
 
               return Column(
                 mainAxisSize: MainAxisSize.min,
@@ -161,7 +253,7 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: MomoColors.border,
+                        color: MomoColors.primary.withValues(alpha: 0.45),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -177,70 +269,146 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '내가 가입한 번개',
+                              '내 번개 모임',
                               style: MomoTextStyles.heading.copyWith(
                                 fontSize: 18,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              joined.isEmpty
-                                  ? '참여 중인 번개가 없어요.'
-                                  : '현재 ${joined.length}개 번개에 참여 중입니다.',
+                              '진행중 ${active.length} · 종료 ${ended.length}',
                               style: MomoTextStyles.caption,
                             ),
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded),
-                        color: MomoColors.textSub,
+                      Material(
+                        color: MomoColors.surface,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          onTap: () => Navigator.of(context).pop(),
+                          customBorder: const CircleBorder(),
+                          child: const SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 20,
+                              color: MomoColors.textSub,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: MomoSpacing.sm),
-                  if (joined.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: MomoSpacing.md,
+                  _SheetTabs(
+                    index: _tabIndex,
+                    activeCount: active.length,
+                    endedCount: ended.length,
+                    onChanged: (i) => setState(() => _tabIndex = i),
+                  ),
+                  const SizedBox(height: MomoSpacing.sm),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        if (showActive) ...[
+                          _SectionLabel(
+                            label: '진행중 모임',
+                            count: active.length,
+                          ),
+                          const SizedBox(height: MomoSpacing.xs),
+                          if (active.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: MomoSpacing.sm,
+                              ),
+                              child: Text(
+                                '진행 중인 번개가 없어요.',
+                                style: MomoTextStyles.caption,
+                                textAlign: TextAlign.center,
+                              ),
+                            )
+                          else
+                            ...active.map(
+                              (meeting) => Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: MomoSpacing.sm,
+                                ),
+                                child: _JoinedMeetingCard(
+                                  meeting: meeting,
+                                  startAtLabel:
+                                      _formatStartAt(meeting.startAt),
+                                  onOpenDetail: () => _openDetail(meeting),
+                                  onChat: () => _openChat(meeting),
+                                  onJoinMap: () => _openJoinMap(meeting),
+                                  onMapLocation: () => _focusOnMap(meeting),
+                                  onEnd: meeting.isHost
+                                      ? () => _endMeeting(meeting)
+                                      : null,
+                                ),
+                              ),
+                            ),
+                        ],
+                        if (showEnded) ...[
+                          _SectionLabel(
+                            label: '종료된 모임',
+                            count: ended.length,
+                          ),
+                          const SizedBox(height: MomoSpacing.xs),
+                          if (ended.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: MomoSpacing.sm,
+                              ),
+                              child: Text(
+                                '종료된 모임이 없어요.',
+                                style: MomoTextStyles.caption,
+                                textAlign: TextAlign.center,
+                              ),
+                            )
+                          else
+                            ...ended.map(
+                              (snap) => Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: MomoSpacing.sm,
+                                ),
+                                child: _EndedMeetingCard(
+                                  snapshot: snap,
+                                  onChat: () => _openEndedChat(snap),
+                                  onSummary: () => _openEndedSummary(snap),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: MomoSpacing.sm),
+                  SizedBox(
+                    height: 48,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        backgroundColor: MomoColors.neutralFill,
+                        foregroundColor: MomoColors.textMain,
+                        elevation: 0,
+                        minimumSize: const Size(0, 48),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            MomoRadius.component,
+                          ),
+                        ),
                       ),
                       child: Text(
-                        '지도에서 택시팟에 참여해 보세요.',
+                        '닫기',
                         style: MomoTextStyles.body.copyWith(
-                          color: MomoColors.textSub,
+                          fontWeight: FontWeight.w600,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  else
-                    Flexible(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: joined.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: MomoSpacing.sm),
-                        itemBuilder: (context, index) {
-                          final meeting = joined[index];
-                          return _JoinedMeetingCard(
-                            meeting: meeting,
-                            startAtLabel: _formatStartAt(meeting.startAt),
-                            onChat: () => _openChat(meeting),
-                            onJoinMap: () => _openJoinMap(meeting),
-                            onMapLocation: () => _focusOnMap(meeting),
-                          );
-                        },
                       ),
                     ),
-                  const SizedBox(height: MomoSpacing.sm),
-                  OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: MomoColors.textMain,
-                      side: const BorderSide(color: MomoColors.border),
-                      backgroundColor: MomoColors.surface,
-                    ),
-                    child: const Text('닫기'),
                   ),
                 ],
               );
@@ -252,27 +420,279 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
   }
 }
 
+class _JoinedSheetData {
+  const _JoinedSheetData({required this.active, required this.ended});
+
+  final List<MeetingDetail> active;
+  final List<EndedMeetingSnapshot> ended;
+}
+
+class _SheetTabs extends StatelessWidget {
+  const _SheetTabs({
+    required this.index,
+    required this.activeCount,
+    required this.endedCount,
+    required this.onChanged,
+  });
+
+  final int index;
+  final int activeCount;
+  final int endedCount;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget chip(int i, String label) {
+      final selected = index == i;
+      return Expanded(
+        child: Material(
+          color: selected ? MomoColors.background : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          elevation: selected ? 1 : 0,
+          shadowColor: MomoColors.textMain.withValues(alpha: 0.08),
+          child: InkWell(
+            onTap: () => onChanged(i),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: MomoTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: MomoColors.textMain,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: MomoColors.neutralFill,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          chip(0, '전체'),
+          chip(1, '🟢 진행중 ($activeCount)'),
+          chip(2, '🏁 종료 ($endedCount)'),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label, required this.count});
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: MomoTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: MomoColors.surface,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '$count건',
+            style: MomoTextStyles.caption.copyWith(fontSize: 11),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _JoinedMeetingCard extends StatelessWidget {
   const _JoinedMeetingCard({
     required this.meeting,
     required this.startAtLabel,
+    required this.onOpenDetail,
     required this.onChat,
     required this.onJoinMap,
     required this.onMapLocation,
+    this.onEnd,
   });
 
   final MeetingDetail meeting;
   final String startAtLabel;
+  final VoidCallback onOpenDetail;
   final VoidCallback onChat;
   final VoidCallback onJoinMap;
   final VoidCallback onMapLocation;
+  final VoidCallback? onEnd;
 
   @override
   Widget build(BuildContext context) {
+    final chip = _categoryChip(meeting);
+
+    return Material(
+      color: MomoColors.onPrimary,
+      borderRadius: BorderRadius.circular(MomoRadius.component),
+      elevation: 1,
+      shadowColor: MomoColors.textMain.withValues(alpha: 0.08),
+      child: Container(
+        padding: const EdgeInsets.all(MomoSpacing.sm),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(MomoRadius.component),
+          border: Border.all(color: MomoColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 정보 영역 탭 → 상세 (하단 버튼과 분리)
+            InkWell(
+              onTap: onOpenDetail,
+              borderRadius: BorderRadius.circular(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MomoSpacing.xs,
+                          vertical: MomoSpacing.xxs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: chip.background,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          chip.label,
+                          style: MomoTextStyles.caption.copyWith(
+                            color: chip.foreground,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${meeting.currentMembers} / ${meeting.maxMembers}명',
+                        style: MomoTextStyles.caption.copyWith(
+                          color: MomoColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: MomoSpacing.xs),
+                  Text(
+                    meeting.title,
+                    style: MomoTextStyles.body
+                        .copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (meeting.placeName != null) ...[
+                    const SizedBox(height: MomoSpacing.xxs),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          size: 16,
+                          color: MomoColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            meeting.placeName!,
+                            style: MomoTextStyles.caption,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: MomoSpacing.xxs),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.schedule_rounded,
+                        size: 16,
+                        color: MomoColors.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(startAtLabel, style: MomoTextStyles.caption),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: MomoSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: _CardActionButton(
+                    icon: Icons.gps_fixed_rounded,
+                    label: '합류 지도',
+                    variant: _CardActionVariant.joinMap,
+                    onPressed: onJoinMap,
+                  ),
+                ),
+                const SizedBox(width: MomoSpacing.xxs),
+                Expanded(
+                  child: _CardActionButton(
+                    icon: Icons.chat_bubble_rounded,
+                    label: '채팅방',
+                    variant: _CardActionVariant.chat,
+                    onPressed: onChat,
+                  ),
+                ),
+                const SizedBox(width: MomoSpacing.xxs),
+                Expanded(
+                  child: _CardActionButton(
+                    icon: onEnd != null
+                        ? Icons.flag_rounded
+                        : Icons.place_rounded,
+                    label: onEnd != null ? '종료' : '지도 위치',
+                    variant: onEnd != null
+                        ? _CardActionVariant.end
+                        : _CardActionVariant.map,
+                    onPressed: onEnd ?? onMapLocation,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EndedMeetingCard extends StatelessWidget {
+  const _EndedMeetingCard({
+    required this.snapshot,
+    required this.onChat,
+    required this.onSummary,
+  });
+
+  final EndedMeetingSnapshot snapshot;
+  final VoidCallback onChat;
+  final VoidCallback onSummary;
+
+  @override
+  Widget build(BuildContext context) {
+    final chip = _categoryChipFromKind(
+      MeetingDisplay.kindFromFields(category: snapshot.category),
+    );
     return Container(
       padding: const EdgeInsets.all(MomoSpacing.sm),
       decoration: BoxDecoration(
-        color: MomoColors.surface,
+        color: MomoColors.onPrimary,
         borderRadius: BorderRadius.circular(MomoRadius.component),
         border: Border.all(color: MomoColors.border),
       ),
@@ -287,91 +707,68 @@ class _JoinedMeetingCard extends StatelessWidget {
                   vertical: MomoSpacing.xxs,
                 ),
                 decoration: BoxDecoration(
-                  color: MomoColors.primary.withValues(alpha: 0.2),
+                  color: chip.background,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  meetingCategoryLabel(meeting.category),
+                  chip.label,
                   style: MomoTextStyles.caption.copyWith(
-                    color: MomoColors.primary,
-                    fontWeight: FontWeight.w600,
+                    color: chip.foreground,
+                    fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
                 ),
               ),
               const Spacer(),
               Text(
-                '${meeting.currentMembers} / ${meeting.maxMembers}명',
-                style: MomoTextStyles.caption,
+                '🏁 종료됨',
+                style: MomoTextStyles.caption.copyWith(
+                  color: MomoColors.textSub,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
           const SizedBox(height: MomoSpacing.xs),
           Text(
-            meeting.title,
+            snapshot.title,
             style: MomoTextStyles.body.copyWith(fontWeight: FontWeight.w700),
           ),
-          if (meeting.placeName != null) ...[
-            const SizedBox(height: MomoSpacing.xxs),
-            Row(
-              children: [
-                const Icon(
-                  Icons.location_on,
-                  size: 16,
-                  color: MomoColors.primary,
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    meeting.placeName!,
-                    style: MomoTextStyles.caption,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: MomoSpacing.xxs),
-          Row(
-            children: [
-              const Icon(
-                Icons.schedule_rounded,
-                size: 16,
-                color: MomoColors.primary,
-              ),
-              const SizedBox(width: 4),
-              Text(startAtLabel, style: MomoTextStyles.caption),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            '${snapshot.placeName ?? '장소 미정'} · 참여 ${snapshot.memberCount}명',
+            style: MomoTextStyles.caption,
+          ),
+          Text(
+            '위치공유 OFF · 채팅 30일 보관',
+            style: MomoTextStyles.caption.copyWith(fontSize: 11),
           ),
           const SizedBox(height: MomoSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: _CardActionButton(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  label: '채팅하기',
-                  filled: false,
-                  onPressed: onChat,
-                ),
+          SizedBox(
+            height: 44,
+            child: ElevatedButton(
+              onPressed: onSummary,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MomoColors.textMain,
+                foregroundColor: MomoColors.onPrimary,
+                minimumSize: const Size(0, 44),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                elevation: 0,
               ),
-              const SizedBox(width: MomoSpacing.xxs),
-              Expanded(
-                child: _CardActionButton(
-                  icon: Icons.my_location_rounded,
-                  label: '합류 지도',
-                  filled: true,
-                  onPressed: onJoinMap,
-                ),
+              child: const Text('🍑 매너 평가 & 채팅 확인'),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 40,
+            child: OutlinedButton(
+              onPressed: onChat,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 40),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              const SizedBox(width: MomoSpacing.xxs),
-              Expanded(
-                child: _CardActionButton(
-                  icon: Icons.place_outlined,
-                  label: '지도 위치',
-                  filled: false,
-                  onPressed: onMapLocation,
-                ),
-              ),
-            ],
+              child: const Text('채팅만 보기 (읽기 전용)'),
+            ),
           ),
         ],
       ),
@@ -379,56 +776,132 @@ class _JoinedMeetingCard extends StatelessWidget {
   }
 }
 
+class _CategoryChip {
+  const _CategoryChip({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String label;
+  final Color background;
+  final Color foreground;
+}
+
+_CategoryChip _categoryChip(MeetingSummary meeting) =>
+    _categoryChipFromKind(MeetingDisplay.kindOf(meeting));
+
+_CategoryChip _categoryChipFromKind(MeetingDisplayKind kind) {
+  final label = MeetingDisplay.label(kind);
+  switch (kind) {
+    case MeetingDisplayKind.taxi:
+      return const _CategoryChip(
+        label: '택시팟',
+        background: MomoColors.taxiGoldSoft,
+        foreground: MomoColors.taxiGoldDark,
+      );
+    case MeetingDisplayKind.sports:
+      return _CategoryChip(
+        label: label,
+        background: MomoColors.primary.withValues(alpha: 0.16),
+        foreground: MomoColors.primary,
+      );
+    case MeetingDisplayKind.meal:
+    case MeetingDisplayKind.drink:
+    case MeetingDisplayKind.dating:
+      return _CategoryChip(
+        label: label,
+        background: MomoColors.primary.withValues(alpha: 0.12),
+        foreground: MomoColors.primary,
+      );
+    case MeetingDisplayKind.study:
+      return _CategoryChip(
+        label: label,
+        background: MomoColors.success.withValues(alpha: 0.18),
+        foreground: MomoColors.textMain,
+      );
+    case MeetingDisplayKind.hobby:
+    case MeetingDisplayKind.other:
+      return _CategoryChip(
+        label: label,
+        background: MomoColors.surface,
+        foreground: MomoColors.textSub,
+      );
+  }
+}
+
+enum _CardActionVariant { chat, joinMap, map, end }
+
 class _CardActionButton extends StatelessWidget {
   const _CardActionButton({
     required this.icon,
     required this.label,
-    required this.filled,
+    required this.variant,
     required this.onPressed,
   });
 
   final IconData icon;
   final String label;
-  final bool filled;
+  final _CardActionVariant variant;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
-    if (filled) {
-      return ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-          backgroundColor: enabled ? MomoColors.primary : MomoColors.disabled,
-          foregroundColor: MomoColors.onPrimary,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18),
-            const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 11)),
-          ],
-        ),
-      );
+
+    late final Color bg;
+    late final Color fg;
+    late final Color? border;
+
+    switch (variant) {
+      case _CardActionVariant.chat:
+        bg = MomoColors.surface;
+        fg = MomoColors.primary;
+        border = MomoColors.border;
+      case _CardActionVariant.joinMap:
+        bg = enabled ? MomoColors.primary : MomoColors.disabled;
+        fg = MomoColors.onPrimary;
+        border = null;
+      case _CardActionVariant.map:
+        bg = MomoColors.neutralFill;
+        fg = MomoColors.textMain;
+        border = null;
+      case _CardActionVariant.end:
+        bg = MomoColors.background;
+        fg = MomoColors.error;
+        border = MomoColors.error.withValues(alpha: 0.35);
     }
 
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-        foregroundColor: MomoColors.textMain,
-        side: const BorderSide(color: MomoColors.border),
-        backgroundColor: MomoColors.background,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: MomoColors.primary),
-          const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 11)),
-        ],
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(MomoRadius.component),
+      elevation: variant == _CardActionVariant.joinMap && enabled ? 2 : 0,
+      shadowColor: MomoColors.primary.withValues(alpha: 0.3),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(MomoRadius.component),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(MomoRadius.component),
+            border: border == null ? null : Border.all(color: border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: fg),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: fg,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
