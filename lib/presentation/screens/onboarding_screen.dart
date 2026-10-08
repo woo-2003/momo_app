@@ -3,23 +3,21 @@ import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/presentation/screens/main_screen.dart';
 
 // =============================================================================
-// 온보딩 (가입 직후 · 메인 직전)
-// - 진입: NicknameSetupScreen 가입 성공 후 (항상 3장 표시, 별도 "본 적 있음" 저장 없음)
+// 온보딩 (가입 직후 · 메인 직전) — 엑셀 `온보딩` 3장 소개
+// - 진입: NicknameSetupScreen 가입 성공 후
 // - 종료: 건너뛰기 / 시작하기 → MainScreen (스택 초기화)
-// - 로그인·자동로그인은 이 화면을 거치지 않음
-// - 카피·아이콘은 _pages 만 수정하면 됨 (레이아웃 재사용)
+// - 선호 설문(S-ONBOARD)은 이번 범위 밖
 // =============================================================================
 
-/// 한 장의 온보딩 콘텐츠. 문구·아이콘 교체 시 여기만 바꾸면 된다.
 class _OnboardingPageData {
   const _OnboardingPageData({
-    required this.icon,
+    required this.emoji,
     required this.badge,
     required this.title,
     required this.description,
   });
 
-  final IconData icon;
+  final String emoji;
   final String badge;
   final String title;
   final String description;
@@ -34,26 +32,27 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  // 페이지 수·문구 바꿀 때: _pages 길이 = 점 개수와 동일하게 유지
   static const List<_OnboardingPageData> _pages = [
     _OnboardingPageData(
-      icon: Icons.map_outlined,
-      badge: '내 주변 실시간 모임 탐색',
+      emoji: '🗺️',
+      badge: '✨ 내 주변 실시간 모임 탐색',
       title: '내 주변의 모든 모임을\n지도에서 한눈에!',
       description:
-          '스터디, 밥약, 스포츠까지!\n내 위치 근처에서 열리는 다양한 모임을\n실시간 지도 핀으로 탐색하고 참여해보세요.',
+          '스터디, 밥약, 스포츠, 취미까지!\n내 위치 근처에서 열리는 다양한 모임을\n실시간 지도 핀으로 탐색하고 참여해보세요.',
     ),
     _OnboardingPageData(
-      icon: Icons.local_taxi_outlined,
-      badge: '동승자 모집 & 알뜰 이동',
+      emoji: '🚕',
+      badge: '🚕 동승자 모집 & 알뜰 이동',
       title: '목적지가 같을 땐\n택시팟으로 함께 가요',
-      description: '동승자를 모아 택시 요금을 알뜰하게 나누고,\n사전 집결 장소에서 안전하게 합승하여 이동하세요.',
+      description:
+          '동승자를 모아 택시 요금을 알뜰하게 나누고,\n사전 집결 장소에서 안전하게 합승하여 이동하세요.',
     ),
     _OnboardingPageData(
-      icon: Icons.celebration_outlined,
-      badge: '시작 준비 완료',
-      title: '지금 바로 momo를\n시작해보세요!',
-      description: '이웃들과 함께 만드는 즐거운 소통과 약속!\n아래 버튼을 눌러 모임을 둘러보세요.',
+      emoji: '🎉',
+      badge: '🚀 시작 준비 완료',
+      title: '지금 바로 모든모임을\n시작해보세요!',
+      description:
+          '이웃들과 함께 만드는 즐거운 소통과 약속!\n아래 버튼을 눌러 모임을 둘러보세요.',
     ),
   ];
 
@@ -70,7 +69,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _goMain() {
-    // 가입 스택(랜딩~닉네임)을 비우고 메인만 남긴다.
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(builder: (_) => MainScreen()),
       (route) => false,
@@ -126,18 +124,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  /// 상단: 로그인과 같은 momo 워드마크 + 건너뛰기
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.only(top: MomoSpacing.xs),
       child: Row(
         children: [
+          const Text('🍑', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 6),
           Text(
-            'momo',
+            '모든모임',
             style: MomoTextStyles.heading.copyWith(
-              color: MomoColors.primary,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1.5,
+              color: MomoColors.textMain,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+              letterSpacing: -0.5,
             ),
           ),
           const Spacer(),
@@ -146,7 +146,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             style: OutlinedButton.styleFrom(
               foregroundColor: MomoColors.textSub,
               side: const BorderSide(color: MomoColors.border),
+              backgroundColor: MomoColors.neutralFill,
               minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               padding: const EdgeInsets.symmetric(
                 horizontal: MomoSpacing.sm,
                 vertical: MomoSpacing.xs,
@@ -184,24 +186,46 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_isFirst) {
       return SizedBox(
         width: double.infinity,
-        child: ElevatedButton(onPressed: _onNext, child: const Text('다음')),
+        height: 56,
+        child: ElevatedButton(
+          onPressed: _onNext,
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(0, 56),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: const Text('다음'),
+        ),
       );
     }
 
     return Row(
       children: [
-        TextButton(
-          onPressed: _onPrev,
-          child: Text(
-            '이전',
-            style: MomoTextStyles.body.copyWith(color: MomoColors.textSub),
+        SizedBox(
+          height: 56,
+          child: OutlinedButton(
+            onPressed: _onPrev,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: MomoColors.textSub,
+              backgroundColor: MomoColors.neutralFill,
+              side: const BorderSide(color: MomoColors.border),
+              minimumSize: const Size(88, 56),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('이전'),
           ),
         ),
         const SizedBox(width: MomoSpacing.sm),
         Expanded(
-          child: ElevatedButton(
-            onPressed: _onNext,
-            child: Text(_isLast ? '시작하기' : '다음'),
+          child: SizedBox(
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _onNext,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(0, 56),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(_isLast ? '✨ 시작하기' : '다음'),
+            ),
           ),
         ),
       ],
@@ -209,7 +233,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-/// 가운데: 아이콘 카드 + 배지 + 제목 + 설명
 class _OnboardingPageBody extends StatelessWidget {
   const _OnboardingPageBody({required this.data});
 
@@ -221,13 +244,22 @@ class _OnboardingPageBody extends StatelessWidget {
       children: [
         const Spacer(flex: 2),
         Container(
-          width: 120,
-          height: 120,
-          decoration: const BoxDecoration(
+          width: 128,
+          height: 128,
+          decoration: BoxDecoration(
             color: MomoColors.surface,
-            borderRadius: MomoRadius.all,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: MomoColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: MomoColors.primary.withValues(alpha: 0.12),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-          child: Icon(data.icon, size: 56, color: MomoColors.primary),
+          alignment: Alignment.center,
+          child: Text(data.emoji, style: const TextStyle(fontSize: 56)),
         ),
         const SizedBox(height: MomoSpacing.md),
         Container(
@@ -257,7 +289,10 @@ class _OnboardingPageBody extends StatelessWidget {
         Text(
           data.description,
           textAlign: TextAlign.center,
-          style: MomoTextStyles.caption.copyWith(height: 1.5),
+          style: MomoTextStyles.caption.copyWith(
+            height: 1.5,
+            color: MomoColors.textSub,
+          ),
         ),
         const Spacer(flex: 3),
       ],

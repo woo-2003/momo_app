@@ -22,8 +22,10 @@ class EmailOtpAuthRepository implements AuthRepository {
         email: email.trim(),
         password: password,
       );
+      // userId = 서버 JWT sub / 메시지 senderId 와 같아야 함.
+      // 이전: result.email 이라 채팅 isMine 이 항상 false → 내 말풍선이 왼쪽.
       return AuthSession(
-        userId: result.email,
+        userId: result.accountId ?? result.email,
         accountId: result.accountId,
         nickname: result.nickname,
         accessToken: result.token,

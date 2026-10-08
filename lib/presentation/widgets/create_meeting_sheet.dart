@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:momo_app/core/theme.dart';
 
-/// + 버튼으로 열리는 모임 유형 선택 시트.
+/// + 버튼으로 열리는 모임 유형 선택 시트 (도안 made 톤).
+/// 색은 [MomoColors]만 사용.
 enum CreateMeetingType { taxi, gathering }
 
 /// 메인 지도에서 모임 만들기 유형을 고르는 바텀 시트.
@@ -18,8 +19,6 @@ Future<CreateMeetingType?> showCreateMeetingSheet(BuildContext context) {
 
 class _CreateMeetingSheet extends StatelessWidget {
   const _CreateMeetingSheet();
-
-  static const Color _gatheringAccent = Color(0xFFF2B84B);
 
   void _close(BuildContext context, [CreateMeetingType? type]) {
     Navigator.of(context).pop(type);
@@ -70,7 +69,7 @@ class _CreateMeetingSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: MomoSpacing.xxs),
                       Text(
-                        '만들고자 하는 모임 유형을 선택하세요.',
+                        '만들고자 하는 개설 유형을 선택하세요.',
                         style: MomoTextStyles.caption.copyWith(
                           color: MomoColors.textSub,
                         ),
@@ -78,21 +77,29 @@ class _CreateMeetingSheet extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () => _close(context),
-                  icon: const Icon(Icons.close_rounded),
-                  color: MomoColors.textSub,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 36,
+                Material(
+                  color: MomoColors.surface,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    onTap: () => _close(context),
+                    customBorder: const CircleBorder(),
+                    child: const SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 20,
+                        color: MomoColors.textSub,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: MomoSpacing.md),
             _CreateTypeCard(
-              backgroundColor: MomoColors.primary,
+              tint: MomoColors.taxiGoldSoft,
+              accent: MomoColors.taxiGoldDark,
               icon: Icons.local_taxi_rounded,
               title: '택시팟 만들기',
               subtitle: '같이 택시 타고 요금 나누기',
@@ -100,7 +107,8 @@ class _CreateMeetingSheet extends StatelessWidget {
             ),
             const SizedBox(height: MomoSpacing.sm),
             _CreateTypeCard(
-              backgroundColor: _gatheringAccent,
+              tint: MomoColors.primary.withValues(alpha: 0.14),
+              accent: MomoColors.primary,
               icon: Icons.handshake_rounded,
               title: '모임 생성 (스터디/밥약/스포츠)',
               subtitle: '함께할 파티원 모집하기',
@@ -110,17 +118,20 @@ class _CreateMeetingSheet extends StatelessWidget {
             TextButton(
               onPressed: () => _close(context),
               style: TextButton.styleFrom(
-                backgroundColor: MomoColors.surface,
+                backgroundColor: MomoColors.neutralFill,
                 foregroundColor: MomoColors.textSub,
-                minimumSize: const Size.fromHeight(52),
+                elevation: 0,
+                minimumSize: const Size(0, 52),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(MomoRadius.component),
-                  side: const BorderSide(color: MomoColors.border),
                 ),
               ),
               child: Text(
                 '취소',
-                style: MomoTextStyles.body.copyWith(color: MomoColors.textSub),
+                style: MomoTextStyles.body.copyWith(
+                  color: MomoColors.textSub,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -132,14 +143,16 @@ class _CreateMeetingSheet extends StatelessWidget {
 
 class _CreateTypeCard extends StatelessWidget {
   const _CreateTypeCard({
-    required this.backgroundColor,
+    required this.tint,
+    required this.accent,
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
-  final Color backgroundColor;
+  final Color tint;
+  final Color accent;
   final IconData icon;
   final String title;
   final String subtitle;
@@ -148,21 +161,33 @@ class _CreateTypeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: backgroundColor,
+      color: tint,
       borderRadius: MomoRadius.all,
-      elevation: 2,
-      shadowColor: backgroundColor.withValues(alpha: 0.35),
+      elevation: 1,
+      shadowColor: accent.withValues(alpha: 0.2),
       child: InkWell(
         onTap: onTap,
         borderRadius: MomoRadius.all,
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: MomoSpacing.sm,
             vertical: MomoSpacing.md,
           ),
+          decoration: BoxDecoration(
+            borderRadius: MomoRadius.all,
+            border: Border.all(color: accent.withValues(alpha: 0.35)),
+          ),
           child: Row(
             children: [
-              Icon(icon, color: MomoColors.onPrimary, size: 28),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: accent, size: 24),
+              ),
               const SizedBox(width: MomoSpacing.sm),
               Expanded(
                 child: Column(
@@ -171,7 +196,7 @@ class _CreateTypeCard extends StatelessWidget {
                     Text(
                       title,
                       style: MomoTextStyles.body.copyWith(
-                        color: MomoColors.onPrimary,
+                        color: MomoColors.textMain,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -179,11 +204,15 @@ class _CreateTypeCard extends StatelessWidget {
                     Text(
                       subtitle,
                       style: MomoTextStyles.caption.copyWith(
-                        color: MomoColors.onPrimary.withValues(alpha: 0.9),
+                        color: MomoColors.textSub,
                       ),
                     ),
                   ],
                 ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: accent.withValues(alpha: 0.8),
               ),
             ],
           ),

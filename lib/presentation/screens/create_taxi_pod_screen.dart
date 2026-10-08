@@ -272,11 +272,26 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
               ),
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    color: MomoColors.textMain,
+                  Material(
+                    color: MomoColors.onPrimary,
+                    shape: const CircleBorder(),
+                    elevation: 2,
+                    shadowColor: MomoColors.textMain.withValues(alpha: 0.1),
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      customBorder: const CircleBorder(),
+                      child: const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          color: MomoColors.textMain,
+                          size: 22,
+                        ),
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: MomoSpacing.xs),
                   Text(
                     '택시팟 만들기',
                     style: MomoTextStyles.heading.copyWith(fontSize: 18),
@@ -382,12 +397,18 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
                         ),
                       ),
                       const SizedBox(height: MomoSpacing.xs),
+                      // 시간 유효 시 피치 보더로 시각 피드백 (도안 노란 피드백 → theme primary)
                       Container(
                         height: 180,
                         decoration: BoxDecoration(
                           color: MomoColors.surface,
                           borderRadius: MomoRadius.all,
-                          border: Border.all(color: MomoColors.border),
+                          border: Border.all(
+                            color: _isDepartureTimeValid
+                                ? MomoColors.primary
+                                : MomoColors.border,
+                            width: _isDepartureTimeValid ? 1.5 : 1,
+                          ),
                         ),
                         child: CupertinoDatePicker(
                           mode: CupertinoDatePickerMode.time,
@@ -418,10 +439,27 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
                     ],
                     if (_showSubmit) ...[
                       const SizedBox(height: MomoSpacing.lg),
-                      ElevatedButton(
-                        onPressed: _canSubmit ? _onSubmit : null,
-                        child: Text(
-                          _isSubmitting ? '개설 중…' : '🚕 택시팟 개설하기',
+                      SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _canSubmit ? _onSubmit : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: MomoColors.primary,
+                            foregroundColor: MomoColors.onPrimary,
+                            disabledBackgroundColor: MomoColors.disabled,
+                            elevation: _canSubmit ? 3 : 0,
+                            shadowColor:
+                                MomoColors.primary.withValues(alpha: 0.4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                MomoRadius.component,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            _isSubmitting ? '개설 중…' : '🚕 택시팟 개설하기',
+                            style: MomoTextStyles.button,
+                          ),
                         ),
                       ),
                     ],
@@ -451,8 +489,10 @@ class _CapacityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? MomoColors.primary : MomoColors.surface,
+      color: selected ? MomoColors.primary : MomoColors.onPrimary,
       borderRadius: BorderRadius.circular(MomoRadius.component),
+      elevation: selected ? 2 : 0,
+      shadowColor: MomoColors.primary.withValues(alpha: 0.35),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(MomoRadius.component),

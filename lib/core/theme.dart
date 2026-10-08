@@ -6,14 +6,18 @@ import 'package:flutter/material.dart';
 class MomoColors {
   const MomoColors._();
 
-  // ── 기본 팔레트 (v2: Intense Peach) ──────────────────────────────────────
-  static const Color primary = Color(0xFFEE8F8F);
+  // ── 기본 팔레트 (v3: Fresh Peach / 더 하얀 배경) ────────────────────────
+  /// 쨍한 피치 (버튼·강조)
+  /// 이전: Color(0xFFEE8F8F)
+  static const Color primary = Color(0xFFFF8575);
 
-  /// 웜 아이보리 - 전체 배경
-  static const Color background = Color(0xFFFFF9F1);
+  /// 거의 화이트에 가까운 배경
+  /// 이전: Color(0xFFFFF9F1) → Color(0xFFFEFCFA)
+  static const Color background = Color(0xFFFFFFFE);
 
   /// 연한 피치 - 입력창/카드 표면
-  static const Color surface = Color(0xFFFFF1EF);
+  /// 이전: Color(0xFFFFF1EF)
+  static const Color surface = Color(0xFFFFF5F2);
 
   /// 본문 텍스트 (Deep Brown)
   static const Color textMain = Color(0xFF4D2121);
@@ -22,14 +26,17 @@ class MomoColors {
   static const Color textSub = Color(0xFF6D4C4C);
 
   // ── 확장 팔레트 (웜 톤 정렬) ──────────────────────────────────────────
-  /// 입력창/카드의 외곽선 - 웜 그레이
-  static const Color border = Color(0xFFF2E3DE);
+  /// 입력창/카드의 외곽선 - 맑은 피치 보더
+  /// 이전: Color(0xFFF2E3DE)
+  static const Color border = Color(0xFFFFE4DC);
 
   /// 비활성 상태 배경
-  static const Color disabled = Color(0xFFE8D9D5);
+  /// 이전: Color(0xFFE8D9D5)
+  static const Color disabled = Color(0xFFF5D0C8);
 
   /// 비활성 상태 텍스트
-  static const Color textDisabled = Color(0xFFA6908C);
+  /// 이전: Color(0xFFA6908C)
+  static const Color textDisabled = Color(0xFFB89A94);
 
   /// 에러/경고
   static const Color error = Color(0xFFE5383B);
@@ -39,6 +46,22 @@ class MomoColors {
 
   /// primary 위에 올라가는 텍스트 (버튼 글씨 등)
   static const Color onPrimary = Color(0xFFFFFFFF);
+
+  // ── 역할 액센트 (화면에서 hex 직접 쓰지 말고 여기만) ───────────────────
+  /// 택시팟 말풍·배지 골드
+  static const Color taxiGold = Color(0xFFF0C24B);
+
+  /// 택시 골드 테두리/강조
+  static const Color taxiGoldDark = Color(0xFFE0A820);
+
+  /// 택시 배지 연한 배경
+  static const Color taxiGoldSoft = Color(0xFFFFF3D0);
+
+  /// 택시 골드 위 글씨/아이콘
+  static const Color onTaxiGold = Color(0xFFFFFFFF);
+
+  /// 보조 필 (닫기·지도위치 등 중립 버튼 배경)
+  static const Color neutralFill = Color(0xFFF3F1F0);
 }
 
 /// 8px 배수 spacing 시스템
@@ -144,7 +167,9 @@ class MomoTheme {
           disabledBackgroundColor: MomoColors.disabled,
           disabledForegroundColor: MomoColors.onPrimary,
           elevation: 0,
-          minimumSize: const Size.fromHeight(56),
+          // Size.fromHeight(56) = 가로 infinity → Row/AppBar 안 버튼에서
+          // BoxConstraints 예외가 난다. 최소 너비만 유한하게 둔다.
+          minimumSize: const Size(64, 56),
           padding: const EdgeInsets.symmetric(
             horizontal: MomoSpacing.md,
             vertical: MomoSpacing.sm,
@@ -169,7 +194,7 @@ class MomoTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: MomoColors.textMain,
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size(64, 56),
           side: const BorderSide(color: MomoColors.border),
           shape: MomoRadius.shape,
           textStyle: MomoTextStyles.button.copyWith(color: MomoColors.textMain),

@@ -140,6 +140,7 @@ class MapLocationHelper {
   }
 
   /// 카메라를 현재 위치로 이동. 성공 시 true.
+  /// 지도가 이미 dispose 된 뒤(로그아웃 등)에는 false — 예외를 밖으로 안 던짐.
   static Future<bool> moveCameraToCurrent(
     GoogleMapController? controller, {
     double zoom = 16,
@@ -149,11 +150,18 @@ class MapLocationHelper {
     final target = await currentLatLng();
     if (target == null) return false;
 
-    await controller.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(target: target, zoom: zoom),
-      ),
-    );
-    return true;
+    try {
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: target, zoom: zoom),
+        ),
+      );
+      return true;
+    } on StateError {
+      // GoogleMapController used after GoogleMap disposed
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 }

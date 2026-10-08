@@ -3,6 +3,7 @@ import 'package:momo_app/core/map_location_helper.dart';
 import 'package:momo_app/core/theme.dart';
 import 'package:momo_app/domain/meeting_repository.dart';
 import 'package:momo_app/presentation/screens/meeting_chat_screen.dart';
+import 'package:momo_app/presentation/utils/meeting_end_helper.dart';
 
 /// 모임 상세 (시트 「상세정보 보기」에서 진입).
 /// 택시팟은 시안 참고 레이아웃. 위치 권한 없을 때 참여 CTA는 동의 게이트 후 join.
@@ -108,7 +109,25 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   //   );
   // }
 
-  Future<void> _openChat(MeetingDetail detail) async {
+  Future<void> _endMeeting(MeetingDetail detail) async {
+    setState(() => _isWorking = true);
+    try {
+      final ended = await endMeetingAsHost(
+        context: context,
+        meetingRepository: widget.meetingRepository,
+        meeting: detail,
+      );
+      if (!mounted || !ended) return;
+      Navigator.of(context).pop(true);
+    } finally {
+      if (mounted) setState(() => _isWorking = false);
+    }
+  }
+
+  Future<void> _openChat(
+    MeetingDetail detail, {
+    bool forceReadOnly = false,
+  }) async {
     // 비멤버: 앱바 채팅은 잠금 UI. 여기로 오면 안내만.
     if (!detail.isMember) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,6 +142,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           meetingId: widget.meetingId,
           meetingTitle: detail.title,
           meetingRepository: widget.meetingRepository,
+          forceReadOnly: forceReadOnly ||
+              detail.status == 'cancelled' ||
+              detail.status == 'closed',
         ),
       ),
     );
@@ -427,7 +449,17 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       );
     }
 
-    // 호스트: 채팅 + 모임 취소
+    // 종료된 모임: 읽기 전용 채팅만
+    if (detail.status == 'cancelled' || detail.status == 'closed') {
+      return ElevatedButton(
+        onPressed: _isWorking
+            ? null
+            : () => _openChat(detail, forceReadOnly: true),
+        child: const Text('채팅 내역 (읽기 전용)'),
+      );
+    }
+
+    // 호스트: 채팅 + 모임 종료
     if (detail.isHost) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -438,14 +470,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           ),
           const SizedBox(height: MomoSpacing.xs),
           OutlinedButton(
-            onPressed: _isWorking
-                ? null
-                : () => _runAction(
-                      () => widget.meetingRepository.cancelMeeting(
-                        widget.meetingId,
-                      ),
-                    ),
-            child: const Text('모임 취소'),
+            onPressed: _isWorking ? null : () => _endMeeting(detail),
+            child: const Text('모임 종료'),
           ),
         ],
       );

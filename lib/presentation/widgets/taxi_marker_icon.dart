@@ -3,11 +3,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:momo_app/core/theme.dart';
 
-/// 택시팟 지도용 말풍선 비트맵 마커 (시안: 골드 말풍 + 흰 글씨/아이콘).
-///
-/// theme surface/primary를 쓰지 않음 — 지도 핀은 시안 골드를 따름.
-/// [BitmapDescriptor.bytes]의 [imagePixelRatio] 필수 (미지정 시 마커 거대화).
+/// 택시팟 지도용 말풍선 비트맵 마커.
+/// 색은 [MomoColors]만 사용. [BitmapDescriptor.bytes]의 [imagePixelRatio] 필수.
 class TaxiMarkerIcon {
   TaxiMarkerIcon._();
 
@@ -22,10 +21,9 @@ class TaxiMarkerIcon {
   }) async {
     final taxi = await _loadTaxiImage();
 
-    // 시안 골드 / 흰 텍스트
-    const bubbleGold = Color(0xFFF0C24B);
-    const bubbleGoldDark = Color(0xFFE0A820);
-    const onBubble = Color(0xFFFFFFFF);
+    const bubble = MomoColors.taxiGold;
+    const bubbleEdge = MomoColors.taxiGoldDark;
+    const onBubble = MomoColors.onTaxiGold;
 
     // 시안처럼 컴팩트한 말풍 (너무 크면 지도가 가려짐)
     const double padH = 6;
@@ -89,16 +87,15 @@ class TaxiMarkerIcon {
     // 약한 그림자
     canvas.drawRRect(
       bubbleRect.shift(const Offset(0, 1.5)),
-      Paint()..color = const Color(0x40000000),
+      Paint()..color = MomoColors.textMain.withValues(alpha: 0.25),
     );
 
-    canvas.drawRRect(bubbleRect, Paint()..color = bubbleGold);
+    canvas.drawRRect(bubbleRect, Paint()..color = bubble);
 
-    // 하단만 살짝 어두운 라인 (시안처럼 입체감)
     canvas.drawRRect(
       bubbleRect,
       Paint()
-        ..color = bubbleGoldDark
+        ..color = bubbleEdge
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1,
     );
@@ -111,9 +108,9 @@ class TaxiMarkerIcon {
       ..close();
     canvas.drawPath(
       tipPath.shift(const Offset(0, 1)),
-      Paint()..color = const Color(0x40000000),
+      Paint()..color = MomoColors.textMain.withValues(alpha: 0.25),
     );
-    canvas.drawPath(tipPath, Paint()..color = bubbleGold);
+    canvas.drawPath(tipPath, Paint()..color = bubble);
 
     final iconTop = (bubbleH - iconSize) / 2;
     // 흰 택시 실루엣 — 골드 위에서는 대비 OK. 원형 배경 없음(시안).

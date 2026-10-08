@@ -55,3 +55,6 @@ app.*.map.json
 
 #커서 계획 파일
 .cursor/
+# Design Excel extract (reference only, not app assets)
+.design_xlsx_extract/
+
