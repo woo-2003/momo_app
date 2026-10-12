@@ -1,3 +1,4 @@
+/*
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -108,5 +109,54 @@ class ServerConfig {
       return androidLanUrl;
     }
     return 'http://localhost:$devServerPort';
+  }
+}
+*/
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+
+/// momo_server HTTP / Socket.IO 공통 Base URL.
+///
+/// AWS EC2 배포 서버: http://15.135.110.9:3000
+class ServerConfig {
+  const ServerConfig._();
+
+  // ── AWS EC2 서버 주소 설정 ──────────────────────────────────────────
+  /// AWS EC2 탄력적/공인 IP
+  static const String serverHost = '15.135.110.9';
+
+  /// momo_server 포트
+  static const int serverPort = 3000;
+
+  /// 기본 적용되는 배포 백엔드 Base URL
+  static const String cloudBaseUrl = 'http://$serverHost:$serverPort';
+  // ───────────────────────────────────────────────────────────────────
+
+  /// `--dart-define=API_BASE_URL=http://...` 로 빌드 시 최우선 적용
+  static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL');
+
+  static bool _loggedBaseUrl = false;
+
+  /// 현재 URL 실패 시 대체 주소 (필요 시 유지)
+  static String? androidFallbackBaseUrl(String current) {
+    return null;
+  }
+
+  static String get baseUrl {
+    final url = _resolveBaseUrl();
+    if (kDebugMode && !_loggedBaseUrl) {
+      _loggedBaseUrl = true;
+      debugPrint('[ServerConfig] baseUrl=$url (AWS EC2 Cloud)');
+    }
+    return url;
+  }
+
+  static String _resolveBaseUrl() {
+    // 1. 빌드 인자로 넘긴 URL이 있다면 최우선 적용
+    if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
+
+    // 2. 에뮬레이터, 실기기, 웹 모두 동일하게 AWS EC2 서버로 접속
+    return cloudBaseUrl;
   }
 }
