@@ -194,10 +194,6 @@ class _MainScreenState extends State<MainScreen> {
             icon: BitmapDescriptor.defaultMarkerWithHue(
               BitmapDescriptor.hueAzure,
             ),
-            infoWindow: InfoWindow(
-              title: member.status,
-              snippet: '${member.distanceToDest}m',
-            ),
           ),
     };
 

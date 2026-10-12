@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
@@ -17,8 +18,6 @@ class MeetingLocationShareService {
   static final MeetingLocationShareService instance =
       MeetingLocationShareService._();
 
-  static const Duration _interval = Duration(seconds: 8);
-
   final MeetingLocationService _locationService;
   final SessionStore _sessionStore;
   final Set<String> _meetingIds = {};
@@ -26,7 +25,7 @@ class MeetingLocationShareService {
   final _membersController =
       StreamController<List<MeetingMemberGps>>.broadcast();
 
-  Timer? _timer;
+  StreamSubscription<Position>? _positionSub;
   Position? _previous;
   double? _previousTime;
   List<MeetingMemberGps> _latest = const [];
@@ -40,16 +39,30 @@ class MeetingLocationShareService {
     if (id.isEmpty || _disabledMeetingIds.contains(id)) return;
 
     _meetingIds.add(id);
-    await _ensurePermission();
-    _ensureTimer();
-    await _tick();
+    final granted = await _ensurePermission();
+    if (!granted) {
+      _meetingIds.remove(id);
+      return;
+    }
+    _ensureStream();
+    try {
+      final current = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      await _onPosition(current);
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('[GPS] initial position failed: $error');
+      }
+    }
   }
 
   void stopSharing(String meetingId) {
     _meetingIds.remove(meetingId.trim());
     if (_meetingIds.isEmpty) {
-      _timer?.cancel();
-      _timer = null;
+      _stopStream();
       _latest = const [];
       _membersController.add(_latest);
     }
@@ -57,16 +70,62 @@ class MeetingLocationShareService {
 
   void stopAll() {
     _meetingIds.clear();
-    _timer?.cancel();
-    _timer = null;
+    _stopStream();
     _previous = null;
     _previousTime = null;
     _latest = const [];
     _membersController.add(_latest);
   }
 
-  void _ensureTimer() {
-    _timer ??= Timer.periodic(_interval, (_) => _tick());
+  void _ensureStream() {
+    if (_positionSub != null) return;
+    _positionSub = Geolocator.getPositionStream(
+      locationSettings: _backgroundSettings(),
+    ).listen(
+      _onPosition,
+      onError: (Object error) {
+        if (kDebugMode) {
+          debugPrint('[GPS] stream failed: $error');
+        }
+      },
+    );
+  }
+
+  void _stopStream() {
+    _positionSub?.cancel();
+    _positionSub = null;
+  }
+
+  /// 포그라운드 알림(Android)과 백그라운드 위치(iOS)로
+  /// 앱이 화면 뒤에 있어도 모임 위치를 계속 보낸다.
+  LocationSettings _backgroundSettings() {
+    if (Platform.isAndroid) {
+      return AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 0,
+        intervalDuration: const Duration(seconds: 8),
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'momo 위치 공유',
+          notificationText: '참여 중인 모임에 위치를 보내고 있어요.',
+          enableWakeLock: true,
+          setOngoing: true,
+        ),
+      );
+    }
+    if (Platform.isIOS) {
+      return AppleSettings(
+        accuracy: LocationAccuracy.high,
+        activityType: ActivityType.otherNavigation,
+        distanceFilter: 8,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+        allowBackgroundLocationUpdates: true,
+      );
+    }
+    return const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 8,
+    );
   }
 
   Future<bool> _ensurePermission() async {
@@ -89,7 +148,7 @@ class MeetingLocationShareService {
     return session.accessToken;
   }
 
-  Future<void> _tick() async {
+  Future<void> _onPosition(Position current) async {
     if (_meetingIds.isEmpty) return;
 
     final token = await _token();
@@ -99,20 +158,6 @@ class MeetingLocationShareService {
     }
 
     if (!await _ensurePermission()) return;
-
-    Position current;
-    try {
-      current = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('[GPS] position failed: $error');
-      }
-      return;
-    }
 
     final previous = _previous ?? current;
     final now = DateTime.now();

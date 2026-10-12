@@ -6,22 +6,19 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:momo_app/core/map_location_helper.dart';
 import 'package:momo_app/core/theme.dart';
+import 'package:momo_app/data/session_store.dart';
 import 'package:momo_app/domain/meeting_repository.dart';
 import 'package:momo_app/presentation/screens/meeting_chat_screen.dart';
 import 'package:momo_app/presentation/widgets/all_gathered_sheet.dart';
 import 'package:momo_app/presentation/widgets/join_map_member_panel.dart';
 import 'package:momo_app/presentation/widgets/map_icon_button.dart';
+import 'package:momo_app/service/meeting_location_service.dart';
+import 'package:momo_app/service/meeting_location_share_service.dart';
 
-/// 합류 지도 (FE 더미/로컬 단계).
+/// 합류 지도.
 ///
-/// - 집결 핀 + 내 GPS + 더미 멤버. 색은 [MomoColors]만.
-/// - 서버/소켓은 동준 합의 후 교체.
-///
-/// ### 동준용 Socket 계약 (미구현)
-/// - C→S `location`: `{ meetingId, latitude, longitude }`
-/// - S→C `location`: `{ meetingId, userId, nickname, latitude, longitude, updatedAt }`
-/// - S→C `location:clear`: `{ meetingId, userId }`
-/// - `join` ack에 `locations: [...]` 스냅샷 (선택)
+/// 집결 핀 + 내 GPS + 서버에 올라온 참가자 위치.
+/// 전송은 [MeetingLocationShareService]가 모임 참여 중 백그라운드에서도 유지한다.
 class JoinMapScreen extends StatefulWidget {
   const JoinMapScreen({
     super.key,
@@ -39,10 +36,11 @@ class JoinMapScreen extends StatefulWidget {
 class _JoinMapScreenState extends State<JoinMapScreen> {
   GoogleMapController? _mapController;
   StreamSubscription<Position>? _positionSub;
-  Timer? _dummyTimer;
+  StreamSubscription<List<MeetingMemberGps>>? _remoteSub;
 
   LatLng? _myLatLng;
-  late List<_MemberPin> _members;
+  String? _myUserId;
+  List<MeetingMemberGps> _remote = const [];
   Set<Marker> _markers = {};
   final Map<String, BitmapDescriptor> _iconCache = {};
 
@@ -50,8 +48,8 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
   String? _initError;
   bool _rebuildingMarkers = false;
 
-  /// 집결 도착 판정(m). 기획 ALG-02 근처/도착 구간.
-  static const double _arriveMeters = 80;
+  /// 서버 도착 판정과 동일 (m).
+  static const double _arriveMeters = 15;
 
   /// 전원 도착 축하 시트 1회만.
   bool _allGatheredSheetShown = false;
@@ -67,14 +65,13 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
   @override
   void initState() {
     super.initState();
-    _members = _buildDummyMembers(_gatherLatLng);
     _bootstrap();
   }
 
   @override
   void dispose() {
     _positionSub?.cancel();
-    _dummyTimer?.cancel();
+    _remoteSub?.cancel();
     final controller = _mapController;
     _mapController = null;
     controller?.dispose();
@@ -105,6 +102,20 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
     final me = await MapLocationHelper.currentLatLng();
     if (!mounted) return;
 
+    final session = await SessionStore().read();
+    _myUserId = session?.accountId;
+    await MeetingLocationShareService.instance.startSharing(
+      widget.meeting.meetingId,
+    );
+    if (!mounted) return;
+    _applyRemote(MeetingLocationShareService.instance.currentMembers);
+    _remoteSub = MeetingLocationShareService.instance.members.listen((items) {
+      if (!mounted) return;
+      setState(() => _applyRemote(items));
+      _rebuildMarkers();
+      _maybeShowAllGathered();
+    });
+
     setState(() {
       _myLatLng = me;
       _ready = true;
@@ -125,55 +136,33 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
       _rebuildMarkers();
       _maybeShowAllGathered();
     });
-
-    _dummyTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted) return;
-      final target = _gatherLatLng;
-      if (target == null) return;
-      setState(() {
-        _members = [
-          for (final m in _members)
-            m.copyWith(latLng: _lerpToward(m.latLng, target, 0.18)),
-        ];
-      });
-      _rebuildMarkers();
-      _maybeShowAllGathered();
-    });
   }
 
-  List<_MemberPin> _buildDummyMembers(LatLng? gather) {
-    if (gather == null) return const [];
-    return [
-      _MemberPin(
-        userId: 'dummy-1',
-        nickname: '민수',
-        latLng: LatLng(gather.latitude + 0.0040, gather.longitude - 0.0015),
-        isMe: false,
-        isDummy: true,
-      ),
-      _MemberPin(
-        userId: 'dummy-2',
-        nickname: '지아',
-        latLng: LatLng(gather.latitude - 0.0016, gather.longitude + 0.0012),
-        isMe: false,
-        isDummy: true,
-      ),
-      _MemberPin(
-        userId: 'dummy-3',
-        nickname: '현우',
-        latLng: LatLng(gather.latitude + 0.0005, gather.longitude + 0.0006),
-        isMe: false,
-        isDummy: true,
-        isHost: true,
-      ),
+  void _applyRemote(List<MeetingMemberGps> items) {
+    _remote = [
+      for (final item in items)
+        if (item.meetingId == widget.meeting.meetingId &&
+            item.userId != _myUserId &&
+            item.latitude != 0 &&
+            item.longitude != 0)
+          item,
     ];
   }
 
-  LatLng _lerpToward(LatLng from, LatLng to, double t) {
-    return LatLng(
-      from.latitude + (to.latitude - from.latitude) * t,
-      from.longitude + (to.longitude - from.longitude) * t,
-    );
+  String _nicknameFor(String userId) {
+    for (final member in widget.meeting.members) {
+      if (member.userId == userId && member.nickname.trim().isNotEmpty) {
+        return member.nickname;
+      }
+    }
+    return '참가자';
+  }
+
+  bool _isHost(String userId) {
+    for (final member in widget.meeting.members) {
+      if (member.userId == userId) return member.role == 'host';
+    }
+    return false;
   }
 
   Future<void> _rebuildMarkers() async {
@@ -220,19 +209,19 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
         );
       }
 
-      for (final m in _members) {
-        final letter =
-            m.nickname.isEmpty ? '?' : m.nickname.substring(0, 1);
+      for (final member in _remote) {
+        final nickname = _nicknameFor(member.userId);
+        final letter = nickname.substring(0, 1);
         final icon = await _iconFor(
-          key: m.userId,
+          key: member.userId,
           letter: letter,
           color: MomoColors.success,
           pixelRatio: ratio,
         );
         next.add(
           Marker(
-            markerId: MarkerId(m.userId),
-            position: m.latLng,
+            markerId: MarkerId(member.userId),
+            position: LatLng(member.latitude, member.longitude),
             icon: icon,
             anchor: const Offset(0.5, 0.5),
             zIndexInt: 2,
@@ -268,13 +257,23 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
     final rows = <_MemberPin>[
       if (_myLatLng != null)
         _MemberPin(
-          userId: 'me',
+          userId: _myUserId ?? 'me',
           nickname: '나',
           latLng: _myLatLng!,
           isMe: true,
-          isDummy: false,
+          arrived: _isNear(_myLatLng!),
         ),
-      ..._members,
+      for (final member in _remote)
+        _MemberPin(
+          userId: member.userId,
+          nickname: _nicknameFor(member.userId),
+          latLng: LatLng(member.latitude, member.longitude),
+          isMe: false,
+          isHost: _isHost(member.userId),
+          arrived: member.status == 'ARRIVED' ||
+              member.distanceToDest <= _arriveMeters,
+          distanceMeters: member.distanceToDest,
+        ),
     ];
     final gather = _gatherLatLng;
     if (gather == null) return rows;
@@ -285,13 +284,19 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
     return rows;
   }
 
+  bool _isNear(LatLng point) {
+    final gather = _gatherLatLng;
+    if (gather == null) return false;
+    return _distanceMeters(point, gather) <= _arriveMeters;
+  }
+
   List<JoinMapMemberRowData> get _panelRows {
     final gather = _gatherLatLng;
     final out = <JoinMapMemberRowData>[];
     for (final pin in _listRows) {
-      final dist =
-          gather == null ? null : _distanceMeters(pin.latLng, gather);
-      final arrived = dist != null && dist <= _arriveMeters;
+      final dist = pin.distanceMeters ??
+          (gather == null ? null : _distanceMeters(pin.latLng, gather));
+      final arrived = pin.arrived;
       final status = dist == null
           ? '위치 없음'
           : arrived
@@ -304,7 +309,7 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
           chipLabel: arrived ? '도착' : '이동 중',
           isArrived: arrived,
           isMe: pin.isMe,
-          isDummy: pin.isDummy,
+          isDummy: false,
           isHost: pin.isHost,
         ),
       );
@@ -318,9 +323,7 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
     final rows = _listRows;
     if (rows.isEmpty) return false;
     for (final pin in rows) {
-      if (_distanceMeters(pin.latLng, gather) > _arriveMeters) {
-        return false;
-      }
+      if (!pin.arrived) return false;
     }
     return true;
   }
@@ -494,31 +497,6 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
                               onPressed: _goMyLocation,
                             ),
                           ),
-                          Positioned(
-                            left: MomoSpacing.sm,
-                            bottom: MomoSpacing.sm,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: MomoSpacing.xs,
-                                vertical: MomoSpacing.xxs,
-                              ),
-                              decoration: BoxDecoration(
-                                color: MomoColors.onPrimary.withValues(
-                                  alpha: 0.92,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: MomoColors.border),
-                              ),
-                              child: Text(
-                                '더미 · 로컬',
-                                style: MomoTextStyles.caption.copyWith(
-                                  color: MomoColors.textSub,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -547,27 +525,18 @@ class _MemberPin {
     required this.nickname,
     required this.latLng,
     required this.isMe,
-    required this.isDummy,
+    required this.arrived,
     this.isHost = false,
+    this.distanceMeters,
   });
 
   final String userId;
   final String nickname;
   final LatLng latLng;
   final bool isMe;
-  final bool isDummy;
+  final bool arrived;
   final bool isHost;
-
-  _MemberPin copyWith({LatLng? latLng}) {
-    return _MemberPin(
-      userId: userId,
-      nickname: nickname,
-      latLng: latLng ?? this.latLng,
-      isMe: isMe,
-      isDummy: isDummy,
-      isHost: isHost,
-    );
-  }
+  final double? distanceMeters;
 }
 
 /// 이니셜 원형 마커 비트맵.
