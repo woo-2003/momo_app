@@ -488,7 +488,8 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
                           ),
                           Positioned(
                             right: MomoSpacing.sm,
-                            bottom: MomoSpacing.sm,
+                            bottom: MomoSpacing.sm +
+                                MediaQuery.paddingOf(context).bottom,
                             child: MapIconButton(
                               icon: Icons.my_location_rounded,
                               onPressed: _goMyLocation,
@@ -496,7 +497,8 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
                           ),
                           Positioned(
                             left: MomoSpacing.sm,
-                            bottom: MomoSpacing.sm,
+                            bottom: MomoSpacing.sm +
+                                MediaQuery.paddingOf(context).bottom,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: MomoSpacing.xs,

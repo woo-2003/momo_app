@@ -134,23 +134,23 @@ class JoinMapMemberPanel extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: onChat,
-                        icon: const Icon(Icons.chat_bubble_rounded, size: 18),
-                        label: const Text('채팅방'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: MomoColors.primary,
-                          backgroundColor: MomoColors.surface,
-                          side: const BorderSide(color: MomoColors.border),
-                          // theme minHeight 56 > SizedBox 48 → 제약 예외 방지
-                          minimumSize: const Size(0, 48),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              MomoRadius.component,
-                            ),
+                    child: OutlinedButton.icon(
+                      onPressed: onChat,
+                      icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                      label: const Text('채팅방'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: MomoColors.primary,
+                        backgroundColor: MomoColors.surface,
+                        side: const BorderSide(color: MomoColors.border),
+                        minimumSize: const Size(0, 48),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MomoSpacing.sm,
+                          vertical: MomoSpacing.xs,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            MomoRadius.component,
                           ),
                         ),
                       ),
@@ -158,24 +158,25 @@ class JoinMapMemberPanel extends StatelessWidget {
                   ),
                   const SizedBox(width: MomoSpacing.xs),
                   Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: OutlinedButton(
-                        onPressed: onLeave,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: MomoColors.textMain,
-                          backgroundColor: MomoColors.surface,
-                          side: const BorderSide(color: MomoColors.border),
-                          minimumSize: const Size(0, 48),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              MomoRadius.component,
-                            ),
+                    child: OutlinedButton(
+                      onPressed: onLeave,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: MomoColors.textMain,
+                        backgroundColor: MomoColors.surface,
+                        side: const BorderSide(color: MomoColors.border),
+                        minimumSize: const Size(0, 48),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MomoSpacing.sm,
+                          vertical: MomoSpacing.xs,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            MomoRadius.component,
                           ),
                         ),
-                        child: const Text('나가기'),
                       ),
+                      child: const Text('나가기'),
                     ),
                   ),
                 ],

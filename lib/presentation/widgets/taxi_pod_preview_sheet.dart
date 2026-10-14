@@ -336,53 +336,60 @@ class _PreviewBody extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: SizedBox(
-                height: 48,
-                child: OutlinedButton(
-                  onPressed: isJoining ? null : onDetail,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: MomoColors.textMain,
-                    side: const BorderSide(color: MomoColors.border),
-                    backgroundColor: MomoColors.neutralFill,
-                    // theme minHeight 56 > SizedBox 48 → 제약 예외 방지
-                    minimumSize: const Size(0, 48),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        MomoRadius.component,
-                      ),
+              child: OutlinedButton(
+                onPressed: isJoining ? null : onDetail,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: MomoColors.textMain,
+                  side: const BorderSide(color: MomoColors.border),
+                  backgroundColor: MomoColors.neutralFill,
+                  minimumSize: const Size(0, 48),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MomoSpacing.sm,
+                    vertical: MomoSpacing.xs,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      MomoRadius.component,
                     ),
                   ),
-                  child: const Text('상세정보 보기'),
+                ),
+                child: const Text(
+                  '상세정보 보기',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
             const SizedBox(width: MomoSpacing.xs),
             Expanded(
-              child: SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: isJoining || detail.isMember ? null : onJoin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: MomoColors.primary,
-                    foregroundColor: MomoColors.onPrimary,
-                    disabledBackgroundColor: MomoColors.disabled,
-                    elevation: 2,
-                    shadowColor: MomoColors.primary.withValues(alpha: 0.35),
-                    minimumSize: const Size(0, 48),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        MomoRadius.component,
-                      ),
+              child: ElevatedButton(
+                onPressed: isJoining || detail.isMember ? null : onJoin,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: MomoColors.primary,
+                  foregroundColor: MomoColors.onPrimary,
+                  disabledBackgroundColor: MomoColors.disabled,
+                  elevation: 2,
+                  shadowColor: MomoColors.primary.withValues(alpha: 0.35),
+                  minimumSize: const Size(0, 48),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MomoSpacing.sm,
+                    vertical: MomoSpacing.xs,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      MomoRadius.component,
                     ),
                   ),
-                  child: Text(
-                    detail.isMember
-                        ? '참여 중'
-                        : (isJoining ? '참여 중…' : '참여하기'),
-                    style: MomoTextStyles.button,
-                  ),
+                ),
+                child: Text(
+                  detail.isMember
+                      ? '참여 중'
+                      : (isJoining ? '참여 중…' : '참여하기'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: MomoTextStyles.button,
                 ),
               ),
             ),

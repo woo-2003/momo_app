@@ -457,6 +457,8 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
     return Scaffold(
       backgroundColor: MomoColors.background,
       drawer: AppMenuDrawer(
@@ -532,16 +534,16 @@ class _MainScreenState extends State<MainScreen> {
               ],
             ),
           ),
-          // 복숭아 FAB(72) 위 — 내 위치 버튼과 겹치지 않게.
+          // 복숭아 FAB(72) 위 — 시스템 내비/제스처 바 inset 포함.
           Positioned(
             right: MomoSpacing.sm,
-            bottom: MomoSpacing.lg + 72 + MomoSpacing.sm,
+            bottom: MomoSpacing.lg + bottomInset + 72 + MomoSpacing.sm,
             child: MapMyLocationButton(onPressed: _onMyLocationPressed),
           ),
           Positioned(
             left: 0,
             right: 0,
-            bottom: MomoSpacing.lg,
+            bottom: MomoSpacing.lg + bottomInset,
             child: Center(
               child: PeachFab(
                 onPressed: _showMyJoinedMeetings,
