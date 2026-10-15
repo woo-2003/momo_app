@@ -65,19 +65,30 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
   }
 
   void _reload() {
-    setState(() => _sheetFuture = _loadSheetData());
+    setState(() {
+      _sheetFuture = _loadSheetData();
+    });
   }
 
   /// open 목록 → 상세 → 멤버만 + 로컬 종료 스냅샷.
+  /// 상세 1건 실패해도 시트 전체는 유지 (메인 지도 enrichment 과 동일).
   Future<_JoinedSheetData> _loadSheetData() async {
     final summaries = await widget.meetingRepository.listMeetings();
-    final details = summaries.isEmpty
-        ? const <MeetingDetail>[]
-        : await Future.wait(
-            summaries.map(
-              (s) => widget.meetingRepository.getMeeting(s.meetingId),
-            ),
-          );
+    final details = <MeetingDetail>[];
+    if (summaries.isNotEmpty) {
+      final results = await Future.wait(
+        summaries.map((s) async {
+          try {
+            return await widget.meetingRepository.getMeeting(s.meetingId);
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+      for (final detail in results) {
+        if (detail != null) details.add(detail);
+      }
+    }
     final active = details.where((d) => d.isMember).toList();
     final ended = await EndedMeetingsStore().list();
     // 아직 open 목록에 남아 있으면 종료 탭에서 제외
@@ -386,27 +397,28 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
                     ),
                   ),
                   const SizedBox(height: MomoSpacing.sm),
-                  SizedBox(
-                    height: 48,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: TextButton.styleFrom(
-                        backgroundColor: MomoColors.neutralFill,
-                        foregroundColor: MomoColors.textMain,
-                        elevation: 0,
-                        minimumSize: const Size(0, 48),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            MomoRadius.component,
-                          ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      backgroundColor: MomoColors.neutralFill,
+                      foregroundColor: MomoColors.textMain,
+                      elevation: 0,
+                      minimumSize: const Size(0, 48),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: MomoSpacing.sm,
+                        vertical: MomoSpacing.xs,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          MomoRadius.component,
                         ),
                       ),
-                      child: Text(
-                        '닫기',
-                        style: MomoTextStyles.body.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                    ),
+                    child: Text(
+                      '닫기',
+                      style: MomoTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -744,30 +756,45 @@ class _EndedMeetingCard extends StatelessWidget {
             style: MomoTextStyles.caption.copyWith(fontSize: 11),
           ),
           const SizedBox(height: MomoSpacing.sm),
-          SizedBox(
-            height: 44,
-            child: ElevatedButton(
-              onPressed: onSummary,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: MomoColors.textMain,
-                foregroundColor: MomoColors.onPrimary,
-                minimumSize: const Size(0, 44),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                elevation: 0,
+          ElevatedButton(
+            onPressed: onSummary,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MomoColors.textMain,
+              foregroundColor: MomoColors.onPrimary,
+              minimumSize: const Size(0, 48),
+              padding: const EdgeInsets.symmetric(
+                horizontal: MomoSpacing.sm,
+                vertical: MomoSpacing.xs,
               ),
-              child: const Text('🍑 매너 평가 & 채팅 확인'),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              elevation: 0,
+            ),
+            child: Text(
+              '🍑 매너 평가 & 채팅 확인',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: MomoTextStyles.button.copyWith(fontSize: 14),
             ),
           ),
           const SizedBox(height: 6),
-          SizedBox(
-            height: 40,
-            child: OutlinedButton(
-              onPressed: onChat,
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 40),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          OutlinedButton(
+            onPressed: onChat,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(
+                horizontal: MomoSpacing.sm,
+                vertical: MomoSpacing.xs,
               ),
-              child: const Text('채팅만 보기 (읽기 전용)'),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              '채팅만 보기 (읽기 전용)',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: MomoTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w600,
+                color: MomoColors.textMain,
+              ),
             ),
           ),
         ],

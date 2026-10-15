@@ -8,10 +8,7 @@ import 'package:momo_app/presentation/screens/profile_edit_screen.dart';
 
 /// 내 프로필 — 만든/참여 모임 피드 + 프로필 수정 진입.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({
-    super.key,
-    required this.meetingRepository,
-  });
+  const ProfileScreen({super.key, required this.meetingRepository});
 
   final MeetingRepository meetingRepository;
 
@@ -87,7 +84,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (!mounted) return;
-    setState(() => _feedsFuture = _loadFeeds());
+    setState(() {
+      _feedsFuture = _loadFeeds();
+    });
   }
 
   String _formatStartAt(DateTime startAt) {
@@ -158,9 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          _tabIndex == 0
-                              ? '내가 만든 모임 피드'
-                              : '내가 참여했던 모임 피드',
+                          _tabIndex == 0 ? '내가 만든 모임 피드' : '내가 참여했던 모임 피드',
                           style: MomoTextStyles.body.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -216,9 +213,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   hasScrollBody: false,
                   child: Center(
                     child: Text(
-                      _tabIndex == 0
-                          ? '아직 만든 모임이 없어요.'
-                          : '아직 참여한 모임이 없어요.',
+                      _tabIndex == 0 ? '아직 만든 모임이 없어요.' : '아직 참여한 모임이 없어요.',
                       style: MomoTextStyles.body.copyWith(
                         color: MomoColors.textSub,
                       ),
@@ -248,9 +243,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           if (meeting.status == 'closed' ||
                               meeting.status == 'cancelled') {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('매너 평가는 준비 중이에요.'),
-                              ),
+                              const SnackBar(content: Text('매너 평가는 준비 중이에요.')),
                             );
                             return;
                           }
@@ -371,7 +364,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 decoration: BoxDecoration(
                   color: MomoColors.background.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: MomoColors.primary.withValues(alpha: 0.35)),
+                  border: Border.all(
+                    color: MomoColors.primary.withValues(alpha: 0.35),
+                  ),
                 ),
                 child: Text(
                   _school,
@@ -520,10 +515,12 @@ class _ProfileMeetingCard extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onPrimaryAction,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _ended ? MomoColors.primary : MomoColors.neutralFill,
-                    foregroundColor:
-                        _ended ? MomoColors.onPrimary : MomoColors.textMain,
+                    backgroundColor: _ended
+                        ? MomoColors.primary
+                        : MomoColors.neutralFill,
+                    foregroundColor: _ended
+                        ? MomoColors.onPrimary
+                        : MomoColors.textMain,
                     elevation: 0,
                     minimumSize: const Size(0, 44),
                     maximumSize: const Size(double.infinity, 44),

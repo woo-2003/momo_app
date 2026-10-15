@@ -67,56 +67,59 @@ Future<void> showAllGatheredSheet({
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: MomoSpacing.md),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(sheetContext).pop();
-                    onOpenChat();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(0, 52),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  onOpenChat();
+                },
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(0, 48),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MomoSpacing.sm,
+                    vertical: MomoSpacing.xs,
                   ),
-                  child: const Text('채팅 열기'),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
+                child: const Text('채팅 열기'),
               ),
               const SizedBox(height: MomoSpacing.xs),
-              SizedBox(
-                height: 48,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(sheetContext).pop();
-                    onStayOnMap();
-                  },
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 48),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    backgroundColor: MomoColors.neutralFill,
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  onStayOnMap();
+                },
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MomoSpacing.sm,
+                    vertical: MomoSpacing.xs,
                   ),
-                  child: const Text('합류맵 계속 보기'),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  backgroundColor: MomoColors.neutralFill,
                 ),
+                child: const Text('합류맵 계속 보기'),
               ),
               if (meeting.isHost) ...[
                 const SizedBox(height: MomoSpacing.xs),
-                SizedBox(
-                  height: 48,
-                  child: TextButton(
-                    onPressed: () async {
-                      Navigator.of(sheetContext).pop();
-                      await endMeetingAsHost(
-                        context: context,
-                        meetingRepository: meetingRepository,
-                        meeting: meeting,
-                      );
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: MomoColors.error,
-                      minimumSize: const Size(0, 48),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                TextButton(
+                  onPressed: () async {
+                    Navigator.of(sheetContext).pop();
+                    await endMeetingAsHost(
+                      context: context,
+                      meetingRepository: meetingRepository,
+                      meeting: meeting,
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: MomoColors.error,
+                    minimumSize: const Size(0, 44),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: MomoSpacing.sm,
+                      vertical: MomoSpacing.xs,
                     ),
-                    child: const Text('모임 종료'),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
+                  child: const Text('모임 종료'),
                 ),
               ],
             ],

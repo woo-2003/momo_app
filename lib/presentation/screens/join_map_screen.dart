@@ -123,19 +123,20 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
     await _rebuildMarkers();
     _maybeShowAllGathered();
 
-    _positionSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 8,
-      ),
-    ).listen((pos) {
-      if (!mounted) return;
-      setState(() {
-        _myLatLng = LatLng(pos.latitude, pos.longitude);
-      });
-      _rebuildMarkers();
-      _maybeShowAllGathered();
-    });
+    _positionSub =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 8,
+          ),
+        ).listen((pos) {
+          if (!mounted) return;
+          setState(() {
+            _myLatLng = LatLng(pos.latitude, pos.longitude);
+          });
+          _rebuildMarkers();
+          _maybeShowAllGathered();
+        });
   }
 
   void _applyRemote(List<MeetingMemberGps> items) {
@@ -270,7 +271,8 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
           latLng: LatLng(member.latitude, member.longitude),
           isMe: false,
           isHost: _isHost(member.userId),
-          arrived: member.status == 'ARRIVED' ||
+          arrived:
+              member.status == 'ARRIVED' ||
               member.distanceToDest <= _arriveMeters,
           distanceMeters: member.distanceToDest,
         ),
@@ -278,8 +280,10 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
     final gather = _gatherLatLng;
     if (gather == null) return rows;
     rows.sort((a, b) {
-      return _distanceMeters(a.latLng, gather)
-          .compareTo(_distanceMeters(b.latLng, gather));
+      return _distanceMeters(
+        a.latLng,
+        gather,
+      ).compareTo(_distanceMeters(b.latLng, gather));
     });
     return rows;
   }
@@ -294,14 +298,15 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
     final gather = _gatherLatLng;
     final out = <JoinMapMemberRowData>[];
     for (final pin in _listRows) {
-      final dist = pin.distanceMeters ??
+      final dist =
+          pin.distanceMeters ??
           (gather == null ? null : _distanceMeters(pin.latLng, gather));
       final arrived = pin.arrived;
       final status = dist == null
           ? '위치 없음'
           : arrived
-              ? '도착 완료 (≤${_arriveMeters.round()}m)'
-              : '집결까지 ${_formatMeters(dist)} · ${_ripenessLabel(dist)}';
+          ? '도착 완료 (≤${_arriveMeters.round()}m)'
+          : '집결까지 ${_formatMeters(dist)} · ${_ripenessLabel(dist)}';
       out.add(
         JoinMapMemberRowData(
           nickname: pin.nickname,
@@ -385,9 +390,9 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
   Future<void> _goMyLocation() async {
     final ok = await MapLocationHelper.moveCameraToCurrent(_mapController);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('현재 위치를 가져오지 못했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('현재 위치를 가져오지 못했어요.')));
     }
   }
 
@@ -406,9 +411,7 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
   @override
   Widget build(BuildContext context) {
     final gather = _gatherLatLng;
-    final initial = gather ??
-        _myLatLng ??
-        const LatLng(37.5665, 126.9780);
+    final initial = gather ?? _myLatLng ?? const LatLng(37.5665, 126.9780);
     final place = widget.meeting.placeName?.trim().isNotEmpty == true
         ? widget.meeting.placeName!
         : '집결 장소';
@@ -418,101 +421,127 @@ class _JoinMapScreenState extends State<JoinMapScreen> {
       body: !_ready
           ? const Center(child: CircularProgressIndicator())
           : _initError != null
-              ? SafeArea(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(MomoSpacing.md),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _initError!,
-                            style: MomoTextStyles.body.copyWith(
-                              color: MomoColors.error,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: MomoSpacing.sm),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('돌아가기'),
-                          ),
-                        ],
+          ? SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(MomoSpacing.md),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _initError!,
+                        style: MomoTextStyles.body.copyWith(
+                          color: MomoColors.error,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
+                      const SizedBox(height: MomoSpacing.sm),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('돌아가기'),
+                      ),
+                    ],
                   ),
-                )
-              : Column(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: Stack(
-                        children: [
-                          GoogleMap(
-                            initialCameraPosition: CameraPosition(
-                              target: initial,
-                              zoom: 15,
-                            ),
-                            markers: _markers,
-                            myLocationEnabled: false,
-                            myLocationButtonEnabled: false,
-                            zoomControlsEnabled: false,
-                            mapToolbarEnabled: false,
-                            onMapCreated: (c) {
-                              _mapController = c;
-                              if (_myLocationEnabledSafe) {
-                                MapLocationHelper.moveCameraToCurrent(c);
-                              }
-                            },
-                          ),
-                          SafeArea(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                MomoSpacing.sm,
-                                MomoSpacing.xs,
-                                MomoSpacing.sm,
-                                0,
-                              ),
-                              child: Row(
-                                children: [
-                                  MapIconButton(
-                                    icon: Icons.close_rounded,
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(),
-                                  ),
-                                  const Spacer(),
-                                  MapIconButton(
-                                    icon: Icons.chat_bubble_rounded,
-                                    onPressed: _openChat,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            right: MomoSpacing.sm,
-                            bottom: MomoSpacing.sm,
-                            child: MapIconButton(
-                              icon: Icons.my_location_rounded,
-                              onPressed: _goMyLocation,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: JoinMapMemberPanel(
-                        title: widget.meeting.title,
-                        placeLabel: place,
-                        overallStatus: _overallStatus,
-                        rows: _panelRows,
-                        onChat: _openChat,
-                        onLeave: () => Navigator.of(context).pop(),
-                      ),
-                    ),
-                  ],
                 ),
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Stack(
+                    children: [
+                      GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: initial,
+                          zoom: 15,
+                        ),
+                        markers: _markers,
+                        myLocationEnabled: false,
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: false,
+                        mapToolbarEnabled: false,
+                        onMapCreated: (c) {
+                          _mapController = c;
+                          if (_myLocationEnabledSafe) {
+                            MapLocationHelper.moveCameraToCurrent(c);
+                          }
+                        },
+                      ),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            MomoSpacing.sm,
+                            MomoSpacing.xs,
+                            MomoSpacing.sm,
+                            0,
+                          ),
+                          child: Row(
+                            children: [
+                              MapIconButton(
+                                icon: Icons.close_rounded,
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                              const Spacer(),
+                              MapIconButton(
+                                icon: Icons.chat_bubble_rounded,
+                                onPressed: _openChat,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: MomoSpacing.sm,
+                        bottom:
+                            MomoSpacing.sm +
+                            MediaQuery.paddingOf(context).bottom,
+                        child: MapIconButton(
+                          icon: Icons.my_location_rounded,
+                          onPressed: _goMyLocation,
+                        ),
+                      ),
+                      Positioned(
+                        left: MomoSpacing.sm,
+                        bottom:
+                            MomoSpacing.sm +
+                            MediaQuery.paddingOf(context).bottom,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: MomoSpacing.xs,
+                            vertical: MomoSpacing.xxs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: MomoColors.onPrimary.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: MomoColors.border),
+                          ),
+                          child: Text(
+                            '더미 · 로컬',
+                            style: MomoTextStyles.caption.copyWith(
+                              color: MomoColors.textSub,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: JoinMapMemberPanel(
+                    title: widget.meeting.title,
+                    placeLabel: place,
+                    overallStatus: _overallStatus,
+                    rows: _panelRows,
+                    onChat: _openChat,
+                    onLeave: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
@@ -559,11 +588,7 @@ class _InitialMarkerIcon {
       size / 2 - 1,
       Paint()..color = MomoColors.textMain.withValues(alpha: 0.2),
     );
-    canvas.drawCircle(
-      center,
-      size / 2 - 2,
-      Paint()..color = fill,
-    );
+    canvas.drawCircle(center, size / 2 - 2, Paint()..color = fill);
     canvas.drawCircle(
       center,
       size / 2 - 2,
@@ -588,10 +613,7 @@ class _InitialMarkerIcon {
     )..layout();
     painter.paint(
       canvas,
-      Offset(
-        (size - painter.width) / 2,
-        (size - painter.height) / 2,
-      ),
+      Offset((size - painter.width) / 2, (size - painter.height) / 2),
     );
 
     final image = await recorder.endRecording().toImage(

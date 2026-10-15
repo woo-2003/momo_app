@@ -41,8 +41,9 @@ class SessionStore {
         nickname: map['nickname'] as String?,
         accessToken: map['accessToken'] as String,
         refreshToken: map['refreshToken'] as String?,
-        accessTokenExpiresAt:
-            DateTime.parse(map['accessTokenExpiresAt'] as String),
+        accessTokenExpiresAt: DateTime.parse(
+          map['accessTokenExpiresAt'] as String,
+        ),
       );
     } catch (_) {
       // 형식이 깨졌으면 폐기한다.

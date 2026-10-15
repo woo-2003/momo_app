@@ -439,9 +439,7 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
                     ],
                     if (_showSubmit) ...[
                       const SizedBox(height: MomoSpacing.lg),
-                      SizedBox(
-                        height: 52,
-                        child: ElevatedButton(
+                      ElevatedButton(
                           onPressed: _canSubmit ? _onSubmit : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: MomoColors.primary,
@@ -450,6 +448,12 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
                             elevation: _canSubmit ? 3 : 0,
                             shadowColor:
                                 MomoColors.primary.withValues(alpha: 0.4),
+                            minimumSize: const Size(0, 52),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: MomoSpacing.sm,
+                              vertical: MomoSpacing.xs,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(
                                 MomoRadius.component,
@@ -461,7 +465,6 @@ class _CreateTaxiPodScreenState extends State<CreateTaxiPodScreen> {
                             style: MomoTextStyles.button,
                           ),
                         ),
-                      ),
                     ],
                     const SizedBox(height: MomoSpacing.lg),
                   ],

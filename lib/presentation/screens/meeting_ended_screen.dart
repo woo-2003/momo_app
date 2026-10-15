@@ -179,28 +179,43 @@ class _MeetingEndedScreenState extends State<MeetingEndedScreen> {
               ),
             ),
             const SizedBox(height: MomoSpacing.md),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _openChat,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(0, 52),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ElevatedButton(
+              onPressed: _openChat,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(0, 48),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MomoSpacing.sm,
+                  vertical: MomoSpacing.xs,
                 ),
-                child: const Text('💬 채팅 내역 확인하기 (읽기 전용)'),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                '💬 채팅 내역 확인하기 (읽기 전용)',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: MomoTextStyles.button.copyWith(fontSize: 14),
               ),
             ),
             const SizedBox(height: MomoSpacing.xs),
-            SizedBox(
-              height: 48,
-              child: OutlinedButton(
-                onPressed: _popToMap,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 48),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  backgroundColor: MomoColors.neutralFill,
+            OutlinedButton(
+              onPressed: _popToMap,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 44),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MomoSpacing.sm,
+                  vertical: MomoSpacing.xs,
                 ),
-                child: const Text('🗺️ 메인 지도로 돌아가기'),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                backgroundColor: MomoColors.neutralFill,
+              ),
+              child: Text(
+                '🗺️ 메인 지도로 돌아가기',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: MomoTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: MomoColors.textMain,
+                ),
               ),
             ),
           ],

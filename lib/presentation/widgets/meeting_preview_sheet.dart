@@ -272,36 +272,44 @@ class _MeetingPreviewSheetState extends State<MeetingPreviewSheet> {
                 Row(
                   children: [
                     Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: OutlinedButton(
-                          onPressed: _isJoining ? null : _openDetail,
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(0, 48),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            backgroundColor: MomoColors.neutralFill,
+                      child: OutlinedButton(
+                        onPressed: _isJoining ? null : _openDetail,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: MomoSpacing.sm,
+                            vertical: MomoSpacing.xs,
                           ),
-                          child: const Text('상세정보 보기'),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          backgroundColor: MomoColors.neutralFill,
+                        ),
+                        child: const Text(
+                          '상세정보 보기',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
                     const SizedBox(width: MomoSpacing.xs),
                     Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _isJoining || detail.isMember
-                              ? null
-                              : () => _onJoin(detail),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(0, 48),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      child: ElevatedButton(
+                        onPressed: _isJoining || detail.isMember
+                            ? null
+                            : () => _onJoin(detail),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: MomoSpacing.sm,
+                            vertical: MomoSpacing.xs,
                           ),
-                          child: Text(
-                            detail.isMember
-                                ? '참여 중'
-                                : (_isJoining ? '참여 중…' : '참여하기'),
-                          ),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          detail.isMember
+                              ? '참여 중'
+                              : (_isJoining ? '참여 중…' : '참여하기'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
