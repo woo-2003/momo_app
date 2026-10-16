@@ -46,14 +46,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<_ProfileFeeds> _loadFeeds() async {
-    final summaries = await widget.meetingRepository.listMeetings();
+    final summaries = await widget.meetingRepository.listMyMeetings();
     if (summaries.isEmpty) {
       return const _ProfileFeeds(created: [], joined: []);
     }
 
-    final details = await Future.wait(
-      summaries.map((s) => widget.meetingRepository.getMeeting(s.meetingId)),
+    final results = await Future.wait(
+      summaries.map((s) async {
+        try {
+          return await widget.meetingRepository.getMeeting(s.meetingId);
+        } catch (_) {
+          return null;
+        }
+      }),
     );
+    final details = results.whereType<MeetingDetail>().toList();
 
     final created = details.where((d) => d.isHost).toList();
     final joined = details.where((d) => d.isMember).toList();
@@ -240,8 +247,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             '${meetingCategoryLabel(meeting.category)} · ${_formatStartAt(meeting.startAt)} · ${meeting.currentMembers}명',
                         onView: () => _openDetail(meeting),
                         onPrimaryAction: () {
-                          if (meeting.status == 'closed' ||
-                              meeting.status == 'cancelled') {
+                          if (isTerminalMeetingStatus(meeting.status)) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('매너 평가는 준비 중이에요.')),
                             );
@@ -447,8 +453,20 @@ class _ProfileMeetingCard extends StatelessWidget {
   final VoidCallback onView;
   final VoidCallback onPrimaryAction;
 
-  bool get _ended =>
-      meeting.status == 'closed' || meeting.status == 'cancelled';
+  bool get _ended => isTerminalMeetingStatus(meeting.status);
+
+  String get _statusLabel {
+    switch (meeting.status) {
+      case 'expired':
+        return '💥 폭파됨';
+      case 'finished':
+        return '🏁 모임 종료됨';
+      case 'cancelled':
+        return '🚫 취소됨';
+      default:
+        return '🟢 진행 중';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -504,7 +522,7 @@ class _ProfileMeetingCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    _ended ? '🏁 모임 종료됨' : '🟢 진행 중',
+                    _statusLabel,
                     style: MomoTextStyles.caption.copyWith(fontSize: 11),
                   ),
                 ),

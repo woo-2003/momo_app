@@ -159,9 +159,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           meetingId: widget.meetingId,
           meetingTitle: detail.title,
           meetingRepository: widget.meetingRepository,
-          forceReadOnly: forceReadOnly ||
-              detail.status == 'cancelled' ||
-              detail.status == 'closed',
+          forceReadOnly:
+              forceReadOnly || isTerminalMeetingStatus(detail.status),
         ),
       ),
     );
@@ -467,7 +466,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
 
     // 종료된 모임: 읽기 전용 채팅만
-    if (detail.status == 'cancelled' || detail.status == 'closed') {
+    if (isTerminalMeetingStatus(detail.status)) {
       return ElevatedButton(
         onPressed: _isWorking
             ? null

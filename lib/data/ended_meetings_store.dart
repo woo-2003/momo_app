@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:momo_app/domain/meeting_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 서버 listMeetings 는 open 만 반환 → 종료 탭용 로컬 스냅샷.
+/// 종료 직후 로컬 캐시. 종료 탭의 기준은 GET /meetings/mine 이다.
 class EndedMeetingSnapshot {
   const EndedMeetingSnapshot({
     required this.meetingId,

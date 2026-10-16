@@ -47,6 +47,13 @@ async function main() {
   assert(unauth.status === 401, `비로그인 목록 조회는 401, got ${unauth.status}`);
   console.log("unauthorized GET /meetings OK");
 
+  const unauthMine = await request("GET", "/meetings/mine");
+  assert(
+    unauthMine.status === 401,
+    `비로그인 내 모임 조회는 401, got ${unauthMine.status}`
+  );
+  console.log("unauthorized GET /meetings/mine OK");
+
   if (!EMAIL || !PASSWORD) {
     console.log(
       "SMOKE_EMAIL / SMOKE_PASSWORD 미설정 — 401 검증만 완료. 전체 플로우는 계정 설정 후 재실행."
@@ -128,6 +135,104 @@ async function main() {
     "post after cancel should be 403 meeting-cancelled"
   );
   console.log("post after cancel blocked OK");
+
+  const mineAfterCancel = await request("GET", "/meetings/mine", { token });
+  assert(
+    mineAfterCancel.status === 200 && Array.isArray(mineAfterCancel.data.items),
+    "mine list failed"
+  );
+  const cancelledItem = mineAfterCancel.data.items.find(
+    (item) => item.meetingId === meetingId
+  );
+  assert(
+    cancelledItem && cancelledItem.status === "cancelled",
+    "cancelled meeting missing from GET /meetings/mine"
+  );
+  console.log("cancelled included in mine OK");
+
+  const expiredCreated = await request("POST", "/meetings", {
+    token,
+    body: {
+      title: `smoke-expire-${Date.now()}`,
+      category: "game",
+      meetingMode: "online",
+      startAt: new Date(Date.now() + 3600000).toISOString(),
+      maxMembers: 4,
+      categoryFields: { gameName: "lol" },
+    },
+  });
+  assert(
+    expiredCreated.status === 201 && expiredCreated.data.meetingId,
+    "create expire meeting failed"
+  );
+  const expiredId = expiredCreated.data.meetingId;
+
+  const expired = await request("POST", `/meetings/${expiredId}/expire`, {
+    token,
+  });
+  assert(
+    expired.status === 200 && expired.data.status === "expired",
+    "expire failed"
+  );
+  console.log("expire meeting OK:", expiredId);
+
+  const listAfterExpire = await request("GET", "/meetings", { token });
+  assert(
+    !listAfterExpire.data.items.some((item) => item.meetingId === expiredId),
+    "expired meeting still in public list"
+  );
+
+  const mineAfterExpire = await request("GET", "/meetings/mine", { token });
+  const expiredItem = mineAfterExpire.data.items.find(
+    (item) => item.meetingId === expiredId
+  );
+  assert(
+    expiredItem && expiredItem.status === "expired",
+    "expired meeting missing from GET /meetings/mine"
+  );
+  const expiredDetail = await request("GET", `/meetings/${expiredId}`, {
+    token,
+  });
+  assert(
+    expiredDetail.status === 200 &&
+      expiredDetail.data.status === "expired" &&
+      expiredDetail.data.isMember === true,
+    "expired detail failed"
+  );
+  console.log("expired included in mine OK");
+
+  const finishedCreated = await request("POST", "/meetings", {
+    token,
+    body: {
+      title: `smoke-finish-${Date.now()}`,
+      category: "game",
+      meetingMode: "online",
+      startAt: new Date(Date.now() + 7200000).toISOString(),
+      maxMembers: 4,
+      categoryFields: { gameName: "lol" },
+    },
+  });
+  assert(
+    finishedCreated.status === 201 && finishedCreated.data.meetingId,
+    "create finish meeting failed"
+  );
+  const finishedId = finishedCreated.data.meetingId;
+  const finished = await request("POST", `/meetings/${finishedId}/finish`, {
+    token,
+  });
+  assert(
+    finished.status === 200 && finished.data.status === "finished",
+    "finish failed"
+  );
+  const mineAfterFinish = await request("GET", "/meetings/mine", { token });
+  const finishedItem = mineAfterFinish.data.items.find(
+    (item) => item.meetingId === finishedId
+  );
+  assert(
+    finishedItem && finishedItem.status === "finished",
+    "finished meeting missing from GET /meetings/mine"
+  );
+  console.log("finished included in mine OK");
 
   console.log("smoke-meetings PASSED");
 }

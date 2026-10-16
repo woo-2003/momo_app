@@ -57,6 +57,22 @@ class MeetingService {
         .toList();
   }
 
+  Future<List<MeetingSummary>> listMyMeetings({required String token}) async {
+    final decoded = await _authorizedJson(
+      token: token,
+      method: 'GET',
+      path: '/meetings/mine',
+    );
+
+    final items = decoded['items'];
+    if (items is! List) return const [];
+
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(_mapMeetingSummary)
+        .toList();
+  }
+
   Future<MeetingDetail> getMeeting({
     required String token,
     required String meetingId,

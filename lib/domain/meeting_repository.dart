@@ -146,6 +146,13 @@ class CreateMeetingInput {
   });
 }
 
+/// 폭파·종료·취소. 공개 목록에는 없고, 예전 모임에서만 보여 준다.
+bool isTerminalMeetingStatus(String status) {
+  return status == 'expired' ||
+      status == 'finished' ||
+      status == 'cancelled';
+}
+
 class MeetingException implements Exception {
   final String code;
   final String message;
@@ -163,6 +170,9 @@ abstract class MeetingRepository {
     MeetingCategory? category,
     MeetingMode? meetingMode,
   });
+
+  /// 내가 만든·참여한 모임. 종료된 상태(`expired`, `finished`, `cancelled`) 포함.
+  Future<List<MeetingSummary>> listMyMeetings();
 
   Future<MeetingDetail> getMeeting(String meetingId);
 

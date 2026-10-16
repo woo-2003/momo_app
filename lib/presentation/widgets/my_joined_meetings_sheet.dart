@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:momo_app/core/meeting_display.dart';
 import 'package:momo_app/core/theme.dart';
-import 'package:momo_app/data/ended_meetings_store.dart';
 import 'package:momo_app/domain/meeting_repository.dart';
 import 'package:momo_app/presentation/screens/join_map_screen.dart';
 import 'package:momo_app/presentation/screens/meeting_chat_screen.dart';
@@ -13,7 +12,8 @@ import 'package:momo_app/presentation/utils/meeting_end_helper.dart';
 /// 복숭아 버튼 → 「내가 가입한 번개」하단 시트.
 /// 색은 [MomoColors]만 사용.
 ///
-/// - 데이터: listMeetings 전체 → getMeeting → isMember 만 표시
+/// - 데이터: GET /meetings/mine → getMeeting.
+///   진행중은 open/full, 종료는 expired/finished/cancelled.
 /// - 카드 탭 / 영역: 모임 상세
 /// - 채팅하기: 시트 유지한 채 채팅 push
 /// - 지도 위치: 집결 좌표를 pop → 메인에서 카메라 이동
@@ -70,10 +70,9 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
     });
   }
 
-  /// open 목록 → 상세 → 멤버만 + 로컬 종료 스냅샷.
-  /// 상세 1건 실패해도 시트 전체는 유지 (메인 지도 enrichment 과 동일).
+  /// 내 모임 상세. 1건 실패해도 시트 전체는 유지.
   Future<_JoinedSheetData> _loadSheetData() async {
-    final summaries = await widget.meetingRepository.listMeetings();
+    final summaries = await widget.meetingRepository.listMyMeetings();
     final details = <MeetingDetail>[];
     if (summaries.isNotEmpty) {
       final results = await Future.wait(
@@ -86,18 +85,23 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
         }),
       );
       for (final detail in results) {
-        if (detail != null) details.add(detail);
+        if (detail != null && (detail.isMember || detail.isHost)) {
+          details.add(detail);
+        }
       }
     }
-    final active = details.where((d) => d.isMember).toList();
-    final ended = await EndedMeetingsStore().list();
-    // 아직 open 목록에 남아 있으면 종료 탭에서 제외
-    final activeIds = active.map((e) => e.meetingId).toSet();
-    final endedOnly =
-        ended.where((e) => !activeIds.contains(e.meetingId)).toList();
+
+    final active = details
+        .where((d) => !isTerminalMeetingStatus(d.status))
+        .toList()
+      ..sort((a, b) => a.startAt.compareTo(b.startAt));
+    final ended = details
+        .where((d) => isTerminalMeetingStatus(d.status))
+        .toList()
+      ..sort((a, b) => b.startAt.compareTo(a.startAt));
 
     widget.onJoinedCount?.call(active.length);
-    return _JoinedSheetData(active: active, ended: endedOnly);
+    return _JoinedSheetData(active: active, ended: ended);
   }
 
   Future<void> _openDetail(MeetingDetail meeting) async {
@@ -137,12 +141,12 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
     if (ended && mounted) _reload();
   }
 
-  Future<void> _openEndedChat(EndedMeetingSnapshot snap) async {
+  Future<void> _openEndedChat(MeetingDetail meeting) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => MeetingChatScreen(
-          meetingId: snap.meetingId,
-          meetingTitle: snap.title,
+          meetingId: meeting.meetingId,
+          meetingTitle: meeting.title,
           meetingRepository: widget.meetingRepository,
           forceReadOnly: true,
         ),
@@ -150,25 +154,15 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
     );
   }
 
-  Future<void> _openEndedSummary(EndedMeetingSnapshot snap) async {
-    try {
-      final detail =
-          await widget.meetingRepository.getMeeting(snap.meetingId);
-      if (!mounted) return;
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => MeetingEndedScreen(
-            meeting: detail,
-            meetingRepository: widget.meetingRepository,
-          ),
+  Future<void> _openEndedSummary(MeetingDetail meeting) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MeetingEndedScreen(
+          meeting: meeting,
+          meetingRepository: widget.meetingRepository,
         ),
-      );
-    } on MeetingException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
-    }
+      ),
+    );
   }
 
   Future<void> _openJoinMap(MeetingDetail meeting) async {
@@ -381,14 +375,14 @@ class _MyJoinedMeetingsSheetState extends State<MyJoinedMeetingsSheet> {
                             )
                           else
                             ...ended.map(
-                              (snap) => Padding(
+                              (meeting) => Padding(
                                 padding: const EdgeInsets.only(
                                   bottom: MomoSpacing.sm,
                                 ),
                                 child: _EndedMeetingCard(
-                                  snapshot: snap,
-                                  onChat: () => _openEndedChat(snap),
-                                  onSummary: () => _openEndedSummary(snap),
+                                  meeting: meeting,
+                                  onChat: () => _openEndedChat(meeting),
+                                  onSummary: () => _openEndedSummary(meeting),
                                 ),
                               ),
                             ),
@@ -436,7 +430,7 @@ class _JoinedSheetData {
   const _JoinedSheetData({required this.active, required this.ended});
 
   final List<MeetingDetail> active;
-  final List<EndedMeetingSnapshot> ended;
+  final List<MeetingDetail> ended;
 }
 
 class _SheetTabs extends StatelessWidget {
@@ -687,19 +681,32 @@ class _JoinedMeetingCard extends StatelessWidget {
 
 class _EndedMeetingCard extends StatelessWidget {
   const _EndedMeetingCard({
-    required this.snapshot,
+    required this.meeting,
     required this.onChat,
     required this.onSummary,
   });
 
-  final EndedMeetingSnapshot snapshot;
+  final MeetingDetail meeting;
   final VoidCallback onChat;
   final VoidCallback onSummary;
+
+  String get _statusLabel {
+    switch (meeting.status) {
+      case 'expired':
+        return '💥 폭파됨';
+      case 'finished':
+        return '🏁 종료됨';
+      case 'cancelled':
+        return '🚫 취소됨';
+      default:
+        return '🏁 종료됨';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final chip = _categoryChipFromKind(
-      MeetingDisplay.kindFromFields(category: snapshot.category),
+      MeetingDisplay.kindFromFields(category: meeting.category),
     );
     return Container(
       padding: const EdgeInsets.all(MomoSpacing.sm),
@@ -733,7 +740,7 @@ class _EndedMeetingCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '🏁 종료됨',
+                _statusLabel,
                 style: MomoTextStyles.caption.copyWith(
                   color: MomoColors.textSub,
                   fontWeight: FontWeight.w700,
@@ -743,12 +750,12 @@ class _EndedMeetingCard extends StatelessWidget {
           ),
           const SizedBox(height: MomoSpacing.xs),
           Text(
-            snapshot.title,
+            meeting.title,
             style: MomoTextStyles.body.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(
-            '${snapshot.placeName ?? '장소 미정'} · 참여 ${snapshot.memberCount}명',
+            '${meeting.placeName ?? '장소 미정'} · 참여 ${meeting.currentMembers}명',
             style: MomoTextStyles.caption,
           ),
           Text(

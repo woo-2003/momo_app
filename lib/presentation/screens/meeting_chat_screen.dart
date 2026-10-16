@@ -64,7 +64,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
         final detail =
             await widget.meetingRepository.getMeeting(widget.meetingId);
         members = detail.currentMembers;
-        if (detail.status == 'cancelled' || detail.status == 'closed') {
+        if (isTerminalMeetingStatus(detail.status)) {
           readOnly = true;
         }
       } catch (_) {}

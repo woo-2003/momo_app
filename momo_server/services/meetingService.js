@@ -447,6 +447,41 @@ async function listMeetings(filters = {}) {
   return snap.docs.map((doc) => mapMeetingListItem(doc.id, doc.data()));
 }
 
+/**
+ * 내가 만든·참여한 모임. open/full 과 expired/finished/cancelled 를 함께 반환한다.
+ * 공개 목록(listMeetings)은 지도용으로 살아 있는 모임만 유지한다.
+ * memberIds 가 없는 예전 문서도 주최자면 creatorId 로 잡는다.
+ */
+async function listMyMeetings(userId) {
+  if (!isNonEmptyString(userId)) {
+    throw new MeetingError(401, "unauthorized");
+  }
+
+  const db = getFirestore();
+  const [memberSnap, creatorSnap] = await Promise.all([
+    db
+      .collection(MEETINGS)
+      .where("memberIds", "array-contains", userId)
+      .limit(LIST_LIMIT)
+      .get(),
+    db
+      .collection(MEETINGS)
+      .where("creatorId", "==", userId)
+      .limit(LIST_LIMIT)
+      .get(),
+  ]);
+
+  const byId = new Map();
+  for (const doc of memberSnap.docs) byId.set(doc.id, doc);
+  for (const doc of creatorSnap.docs) byId.set(doc.id, doc);
+
+  return [...byId.values()]
+    .map((doc) => mapMeetingListItem(doc.id, doc.data()))
+    .sort((a, b) =>
+      String(b.startAt || "").localeCompare(String(a.startAt || ""))
+    );
+}
+
 async function getMeetingDetail(meetingId, userId) {
   const { data } = await getMeetingOrThrow(meetingId);
   const members = await listMembers(meetingId);
@@ -744,6 +779,7 @@ module.exports = {
   MeetingError,
   createMeeting,
   listMeetings,
+  listMyMeetings,
   getMeetingDetail,
   cancelMeeting,
   expireMeeting,

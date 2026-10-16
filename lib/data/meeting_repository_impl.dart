@@ -59,6 +59,11 @@ class MeetingRepositoryImpl implements MeetingRepository {
   }
 
   @override
+  Future<List<MeetingSummary>> listMyMeetings() async {
+    return _meetingService.listMyMeetings(token: await _token());
+  }
+
+  @override
   Future<MeetingDetail> getMeeting(String meetingId) async {
     return _meetingService.getMeeting(
       token: await _token(),

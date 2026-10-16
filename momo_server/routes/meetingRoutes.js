@@ -7,6 +7,7 @@ const {
   MeetingError,
   createMeeting,
   listMeetings,
+  listMyMeetings,
   getMeetingDetail,
   cancelMeeting,
   expireMeeting,
@@ -60,6 +61,16 @@ router.get("/meetings", async (req, res) => {
       category: req.query.category,
       meetingMode: req.query.meetingMode,
     });
+    return res.status(200).json({ success: true, items });
+  } catch (e) {
+    return handleMeetingError(res, e);
+  }
+});
+
+// GET /meetings/mine — 내가 속한 모임 (폭파·종료·취소 포함). :id 보다 앞에 둔다.
+router.get("/meetings/mine", async (req, res) => {
+  try {
+    const items = await listMyMeetings(req.user.id);
     return res.status(200).json({ success: true, items });
   } catch (e) {
     return handleMeetingError(res, e);

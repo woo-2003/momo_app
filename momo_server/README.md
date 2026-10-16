@@ -90,6 +90,7 @@ npm run smoke:places     # 우영: 장소 API 스모크 (KAKAO_REST_API_KEY + �
 
 - `POST /meetings` — 생성
 - `GET /meetings` — 목록 (`open`, `full`)
+- `GET /meetings/mine` — 내가 속한 모임 (`open`, `full`, `expired`, `finished`, `cancelled`)
 - `GET /meetings/:id` — 상세
 - `POST /meetings/:id/cancel` — 주최자 파기 (`cancelled`)
 - `POST /meetings/:id/expire` — 주최자 폭파 (`expired`)
